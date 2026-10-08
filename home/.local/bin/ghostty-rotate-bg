@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Set a random Ghostty background image (different from the current one) and reload Ghostty.
+set -euo pipefail
+
+dir="$HOME/Pictures/Terminal"
+# Written to its own file (included by config.ghostty): config.ghostty is a symlink into
+# the arch-setup repo and must not change every 15 minutes.
+conf="$HOME/.config/ghostty/background.ghostty"
+
+current=$( { sed -n 's/^background-image *= *//p' "$conf" 2>/dev/null || true; } | sed "s|^~|$HOME|")
+
+# Ghostty only supports PNG and JPEG
+mapfile -t pics < <(find "$dir" -maxdepth 1 -type f \
+  \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) ! -path "$current" | shuf)
+(( ${#pics[@]} )) || exit 0
+
+new=${pics[0]/#$HOME/\~}
+echo "background-image=$new" >"$conf"
+
+# SIGUSR2 makes Ghostty reload its config
+pkill -USR2 -x ghostty || true

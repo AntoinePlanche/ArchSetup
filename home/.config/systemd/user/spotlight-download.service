@@ -1,0 +1,7 @@
+[Unit]
+Description=Fetch new Windows Spotlight wallpapers for the login screen
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/spotlight-download 4

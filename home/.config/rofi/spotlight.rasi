@@ -1,0 +1,183 @@
+/*
+ * Spotlight — macOS-Spotlight-style liquid-glass theme for rofi 2.x
+ * Matches the Quickshell bar (Theme.qml / Glass.qml): dark tint, top specular
+ * sheen, hairline rim. Rofi is fullscreen with a faint tint so Hyprland blurs
+ * the whole desktop; ~/.local/bin/spotlight softens the blur while it's open.
+ */
+
+* {
+    backdrop:     rgba(0, 0, 0, 10%);
+    glass:        rgba(26, 26, 31, 46%);
+    rim:          rgba(255, 255, 255, 16%);
+    fg:           #f5f5f7;
+    fg-dim:       rgba(255, 255, 255, 55%);
+    fg-faint:     rgba(255, 255, 255, 32%);
+    hairline:     rgba(255, 255, 255, 10%);
+    accent-top:   rgba(64, 160, 255, 82%);
+    accent-rim:   rgba(255, 255, 255, 22%);
+
+    font:             "Inter 12";
+    background-color: transparent;
+    text-color:       @fg;
+    margin:  0;
+    padding: 0;
+    spacing: 0;
+}
+
+/* Card is 600px wide; top padding puts the search bar's middle on the screen's middle */
+window {
+    fullscreen:       true;
+    background-color: @backdrop;
+    padding:          calc( 50% - 33px ) calc( 50% - 300px ) 0 calc( 50% - 300px );
+}
+
+mainbox {
+    children: [ card, spacer ];
+}
+
+spacer {
+    expand: true;
+}
+
+/* The floating liquid-glass panel */
+card {
+    expand:           false;
+    orientation:      vertical;
+    /* message: rofi-calc shows its live result there */
+    children:         [ inputbar, separator, message, listview, mode-switcher ];
+    background-color: @glass;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,11%), rgba(255,255,255,0%), rgba(255,255,255,0%));
+    border:           1px;
+    border-color:     @rim;
+    border-radius:    22px;
+    padding:          8px;
+}
+
+/* ---- Search field ---- */
+inputbar {
+    children: [ icon-search, entry ];
+    padding:  9px 12px 9px 10px;
+    spacing:  12px;
+}
+
+icon-search {
+    expand:         false;
+    filename:       "system-search-symbolic";
+    size:           20px;
+    vertical-align: 0.5;
+}
+
+entry {
+    font:              "Inter Display Light 18";
+    placeholder:       "paru -S happiness";
+    placeholder-color: @fg-faint;
+    cursor-color:      @accent-top;
+    cursor-width:      2px;
+    vertical-align:    0.5;
+}
+
+separator {
+    expand:       false;
+    orientation:  horizontal;
+    border:       1px 0 0 0;
+    border-color: @hairline;
+    margin:       4px 6px 6px 6px;
+}
+
+/* ---- Results ---- */
+listview {
+    lines:        7;
+    columns:      1;
+    fixed-height: true;
+    dynamic:      false;
+    cycle:        true;
+    scrollbar:    false;
+    spacing:      2px;
+}
+
+element {
+    padding:       7px 10px;
+    spacing:       11px;
+    border:        1px;
+    border-color:  transparent;
+    border-radius: 12px;
+    cursor:        pointer;
+}
+
+element normal.normal,
+element alternate.normal {
+    background-color: transparent;
+    text-color:       @fg;
+}
+
+/* Selected row: a glossy blue glass pill */
+element selected.normal {
+    background-color: transparent;
+    background-image: linear-gradient(to bottom, rgba(64,160,255,82%), rgba(10,112,240,78%));
+    border-color:     @accent-rim;
+    text-color:       #ffffff;
+}
+
+element-icon {
+    size:           24px;
+    vertical-align: 0.5;
+    cursor:         inherit;
+}
+
+element-text {
+    vertical-align: 0.5;
+    text-color:     inherit;
+    cursor:         inherit;
+    highlight:      bold;
+}
+
+/* ---- Messages / errors ---- */
+message {
+    margin:           2px 6px 6px 6px;
+    padding:          9px 11px;
+    border-radius:    12px;
+    background-color: @hairline;
+}
+
+/* Calculator answer / confirmation text */
+textbox {
+    text-color: @fg;
+    font:       "Inter Display Medium 16";
+}
+
+error-message {
+    padding:          16px;
+    background-color: @glass;
+    border:           1px;
+    border-color:     @rim;
+    border-radius:    18px;
+}
+
+/* ---- Mode tabs (Tab / Shift+Tab): Apps · Calculator · Files · Emoji ---- */
+mode-switcher {
+    expand:      false;
+    orientation: horizontal;
+    spacing:     6px;
+    margin:      8px 4px 2px 4px;
+    padding:     6px 0 0 0;
+    border:      1px 0 0 0;
+    border-color: @hairline;
+}
+
+button {
+    padding:          6px 0;
+    border:           1px;
+    border-color:     transparent;
+    border-radius:    11px;
+    background-color: rgba(255, 255, 255, 5%);
+    text-color:       @fg-dim;
+    font:             "Inter Medium 10";
+    horizontal-align: 0.5;
+    cursor:           pointer;
+}
+
+button selected {
+    background-color: rgba(255, 255, 255, 16%);
+    border-color:     @accent-rim;
+    text-color:       @fg;
+}

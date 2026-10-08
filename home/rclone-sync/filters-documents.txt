@@ -1,0 +1,7 @@
+# Exclusions for Documents sync
+# One rule per line: "- FolderName/**" excludes that folder (and everything in it)
+# Add new lines here to exclude more subfolders, then save - no restart needed
+- desktop.ini
+- The Witcher 3/**
+- Rockstar Games/**
+- WindowsPowerShell/**

@@ -1,0 +1,17 @@
+# Applications and dev tools (official + CachyOS repos)
+ghostty
+ghostty-nautilus
+nautilus
+nautilus-python
+sushi
+loupe
+evolution
+libical
+discord
+claude-code
+hermes-agent-desktop
+ventoy-bin
+cmake
+spirv-headers
+vulkan-headers
+vulkan-tools

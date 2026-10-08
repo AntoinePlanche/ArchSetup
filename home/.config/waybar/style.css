@@ -1,0 +1,45 @@
+* {
+    font-family: "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 13px;
+    min-height: 0;
+}
+
+window#waybar {
+    background-color: rgba(15, 15, 15, 0.35);
+    border-radius: 14px;
+    color: #e8e8e8;
+}
+
+#workspaces button {
+    padding: 0 8px;
+    color: #cccccc;
+    background: transparent;
+}
+
+#workspaces button.active {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+}
+
+#clock, #cpu, #memory, #network, #bluetooth, #pulseaudio, #custom-gpu, #custom-power, #custom-windows, #taskbar {
+    padding: 0 10px;
+    margin: 4px 2px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    color: #ffffff;
+}
+
+#custom-power {
+    color: #ff6b6b;
+    font-size: 15px;
+}
+
+#custom-windows {
+    color: #00adef;
+    font-size: 13px;
+}
+
+#taskbar button {
+    padding: 0 4px;
+}

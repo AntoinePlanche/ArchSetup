@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# Graphical setup wizard, run inside Hyprland (autostarted by hyprland.lua as ~/.local/bin/arch-setup-wizard).
+# Everything that needs an account or a reboot into the firmware lives here instead of the TTY:
+# browser logins (OAuth) where the service offers it, zenity forms and password pop-ups otherwise.
+#
+#   arch-setup-wizard              show the remaining tasks
+#   arch-setup-wizard --if-pending exit silently when nothing is left (used at login)
+#   arch-setup-wizard --all        list every task, done or not (to redo one)
+set -uo pipefail
+
+REPO=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
+source "$REPO/lib/common.sh"
+source "$REPO/lib/hw.sh"
+source "$REPO/steps/secureboot.sh"
+
+export SUDO_ASKPASS="$HOME/.local/bin/sudo-askpass"
+# No terminal here: every sudo (also inside the sourced helpers) asks with the zenity pop-up
+sudo() { command sudo -A "$@"; }
+DONE_DIR="$STATE_DIR/wizard"
+mkdir -p "$DONE_DIR"
+TITLE="New machine setup"
+R2_BUCKET="aplanche-personal"   # same bucket as ~/rclone-sync/rclone-sync.sh
+
+z() { zenity --title="$TITLE" --width=520 "$@" 2>/dev/null; }
+mark_done() { date '+%F %T' >"$DONE_DIR/$1"; }
+is_done() { [[ -f $DONE_DIR/$1 ]]; }
+in_terminal() { ghostty --title="$TITLE" -e bash -c "$1; echo; read -rp 'Press Enter to close'"; }
+notify() { notify-send -a "$TITLE" "$@" 2>/dev/null || true; }
+
+# ---------------------------------------------------------------------------------------------
+# Tasks: "id|Label|description". pending_<id> returns 0 when the task still has to be done.
+TASKS=(
+    "secureboot|Secure Boot|Enroll your keys in the firmware (one or two reboots into the firmware setup)"
+    "r2|Cloudflare R2 (Documents + Pictures)|rclone remote + first sync, then every 5 minutes"
+    "pcloud|pCloud|rclone remote, browser login"
+    "github|Git + GitHub|Name/email for commits, GitHub login in the browser"
+    "google|Google account|Evolution: calendar for the bar and gcalendar-events, browser login"
+    "browsers|Chrome + VS Code sync|Sign in to get bookmarks, extensions and settings back"
+    "nordvpn|NordVPN|Browser login"
+    "hyprpm|Hyprland plugins|Build Hyprspace (SUPER+Tab overview) and hyprfocus"
+    "llm|Local LLM model|Download Qwen3.6-35B-A3B (about 22 GB) for llama-server"
+)
+
+pending_secureboot() { ! is_vm && ! { sb_enrolled && sb_enabled; }; }
+pending_r2()       { ! rclone listremotes 2>/dev/null | grep -qx 'r2:'; }
+pending_pcloud()   { ! rclone listremotes 2>/dev/null | grep -qx 'pcloud:' && ! is_done pcloud; }
+pending_github()   { [[ -z $(git config --global user.email) ]] || ! is_done github; }
+pending_google()   { ! is_done google; }
+pending_browsers() { ! is_done browsers; }
+pending_nordvpn()  { has_opt vpn && ! is_done nordvpn; }
+pending_hyprpm()   { ! hyprpm list 2>/dev/null | grep -q 'Plugin Hyprspace'; }
+pending_llm()      { has_opt llm && [[ ! -f $(llm_model_path) ]]; }
+
+# ---------------------------------------------------------------------------------------------
+task_secureboot() {
+    if sb_enrolled; then
+        conf_set SECUREBOOT enrolled
+        if sb_enabled; then z --info --text="Secure Boot is on, with your own keys."; return 0; fi
+        z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="Your keys are enrolled.\n\nLast step: in the firmware, set <b>Secure Boot</b> to <b>Enabled</b>, save and exit." &&
+            systemctl reboot --firmware-setup
+        return 1
+    fi
+    if sb_setup_mode; then
+        z --info --text="The firmware is in Setup Mode: enrolling your keys now (your password is asked)."
+        sudo -A true || return 1
+        sudo -A test -f /var/lib/sbctl/keys/PK/PK.pem || sudo -A sbctl create-keys >/dev/null 2>&1
+        sb_cache_cert
+        sign_boot_files >/dev/null
+        if sudo -A sbctl enroll-keys --microsoft >>"$LOG" 2>&1; then
+            conf_set SECUREBOOT enrolled
+            z --question --ok-label="Reboot to firmware" --cancel-label="Later" \
+                --text="Keys enrolled (yours + Microsoft's, so Windows and GPU firmware keep working).\n\nNow turn <b>Secure Boot</b> on in the firmware, save and exit." &&
+                systemctl reboot --firmware-setup
+        else
+            z --error --text="sbctl enroll-keys failed. Details in $LOG"
+        fi
+        return 1
+    fi
+    z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="To use your own Secure Boot keys, the firmware must be in <b>Setup Mode</b>.
+
+In the firmware (Boot / Security / Secure Boot menu, the name depends on the brand):
+  1. Set Secure Boot mode to <b>Custom</b> (if there is such an option)
+  2. Choose <b>Reset to Setup Mode</b>, or <b>Delete all Secure Boot keys</b>
+  3. Leave Secure Boot <b>disabled</b> for now, save and exit
+
+Back in Hyprland, this wizard opens again and enrolls the keys." &&
+        systemctl reboot --firmware-setup
+    return 1
+}
+
+task_r2() {
+    local form id key secret
+    form=$(z --forms --text="Cloudflare R2 API token (R2 → Manage API tokens, \"Object Read &amp; Write\").\nBucket: $R2_BUCKET" \
+        --add-entry="Account ID" --add-entry="Access Key ID" --add-password="Secret Access Key" --separator=$'\t') || return 1
+    IFS=$'\t' read -r id key secret <<<"$form"
+    [[ -n $id && -n $key && -n $secret ]] || { z --error --text="All three fields are needed."; return 1; }
+    rclone config create r2 s3 provider=Cloudflare access_key_id="$key" secret_access_key="$secret" \
+        endpoint="https://$id.r2.cloudflarestorage.com" acl=private no_check_bucket=true >/dev/null || return 1
+    if ! rclone lsf --max-depth 1 "r2:$R2_BUCKET" >/dev/null 2>&1; then
+        rclone config delete r2
+        z --error --text="Could not list r2:$R2_BUCKET with these credentials. Nothing was saved."
+        return 1
+    fi
+    # First run of the sync script detects the missing state and does a non-destructive --resync
+    systemctl --user enable --now rclone-sync.timer
+    systemctl --user start --no-block rclone-sync.service
+    notify "R2 sync started" "Documents and Pictures are downloading in the background (log: ~/rclone-sync/rclone-backup.log). Wallpapers appear as soon as Pictures/Wallpapers is there."
+    return 0
+}
+
+task_pcloud() {
+    z --question --ok-label="Sign in" --cancel-label="Skip" --text="pCloud: your browser opens to sign in (EU region)." || { mark_done pcloud; return 0; }
+    # rclone starts a local server and opens the browser for the OAuth login
+    rclone config create pcloud pcloud hostname=eapi.pcloud.com >/dev/null 2>&1 &&
+        rclone lsd pcloud: --max-depth 1 >/dev/null 2>&1 && { mark_done pcloud; return 0; }
+    z --error --text="pCloud login did not complete."
+    return 1
+}
+
+task_github() {
+    local form name email
+    form=$(z --forms --text="Git identity for your commits" --add-entry="Name" --add-entry="Email" --separator=$'\t') || return 1
+    IFS=$'\t' read -r name email <<<"$form"
+    [[ -n $name ]] && git config --global user.name "$name"
+    [[ -n $email ]] && git config --global user.email "$email"
+    git config --global init.defaultBranch main
+    pacman -Qq github-cli &>/dev/null || sudo -n pacman -S --needed --noconfirm github-cli >/dev/null 2>&1 || sudo -A pacman -S --needed --noconfirm github-cli >/dev/null
+    # Device-code login: the browser opens, the terminal shows the code to paste
+    in_terminal "gh auth login --hostname github.com --git-protocol https --web && gh auth setup-git"
+    gh auth status >/dev/null 2>&1 && { mark_done github; return 0; }
+    return 1
+}
+
+task_google() {
+    z --info --ok-label="Open Evolution" --text="Evolution opens. Add your Google account:\n<b>File → New → Collection Account</b>, type your Gmail address, then sign in in the browser window.\n\nThe bar calendar and gcalendar-events use this account."
+    evolution >/dev/null 2>&1 &
+    z --question --ok-label="Done" --cancel-label="Later" --text="Google account added in Evolution?" && { mark_done google; return 0; }
+    return 1
+}
+
+task_browsers() {
+    z --info --ok-label="Open them" --text="Chrome and VS Code open.\n • Chrome: sign in with Google (profile icon) to sync bookmarks and passwords.\n • VS Code: Accounts icon (bottom left) → <b>Backup and Sync Settings</b>, sign in with GitHub/Microsoft to get extensions and settings back."
+    google-chrome-stable >/dev/null 2>&1 &
+    code >/dev/null 2>&1 &
+    z --question --ok-label="Done" --cancel-label="Later" --text="Signed in to Chrome and VS Code?" && { mark_done browsers; return 0; }
+    return 1
+}
+
+task_nordvpn() {
+    # Prints a login URL and opens the browser; the callback completes the login
+    in_terminal "nordvpn login"
+    nordvpn account >/dev/null 2>&1 && { mark_done nordvpn; return 0; }
+    return 1
+}
+
+task_hyprpm() {
+    (
+        echo "# Downloading Hyprland headers (password asked)…"
+        sudo -A true
+        hyprpm update </dev/null
+        echo "# Building Hyprspace…"
+        yes | hyprpm add https://github.com/KZDKM/Hyprspace
+        echo "# Building hyprland-plugins (hyprfocus)…"
+        yes | hyprpm add https://github.com/hyprwm/hyprland-plugins
+        hyprpm enable Hyprspace
+        hyprpm enable hyprfocus
+        hyprpm reload && hyprctl reload config-only
+    ) 2>&1 | tee -a "$LOG" | z --progress --pulsate --auto-close --no-cancel --text="Building Hyprland plugins…"
+    pacman -Q hyprland | awk '{print $2}' >"${XDG_STATE_HOME:-$HOME/.local/state}/hyprpm.built-for"
+    ! pending_hyprpm
+}
+
+llm_model_path() { sed -n 's/^LLAMA_ARG_MODEL=//p' "$HOME/.config/llama/server/environment.conf" 2>/dev/null; }
+task_llm() {
+    local dest url
+    dest=$(llm_model_path)
+    url="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/$(basename "$dest")"
+    mkdir -p "$(dirname "$dest")"
+    curl -fL -C - -o "$dest.part" "$url" --progress-bar 2>&1 |
+        stdbuf -oL tr '\r' '\n' | stdbuf -oL grep -oE '[0-9]+(\.[0-9])?%' | stdbuf -oL tr -d '%' |
+        z --progress --auto-close --text="Downloading $(basename "$dest")…"
+    if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+        mv "$dest.part" "$dest"
+        notify "Local LLM ready" "Type 'ai' in a terminal to start llama-server."
+        return 0
+    fi
+    z --error --text="Download failed or cancelled (it resumes next time).\n$url"
+    return 1
+}
+
+# ---------------------------------------------------------------------------------------------
+main() {
+    local mode=${1:-}
+    [[ $mode == --if-pending && -f $DONE_DIR/dismissed ]] && exit 0
+    command -v zenity >/dev/null || exit 0
+
+    local rows=() t id label desc
+    for t in "${TASKS[@]}"; do
+        IFS='|' read -r id label desc <<<"$t"
+        if [[ $mode == --all ]] || "pending_$id"; then rows+=(TRUE "$id" "$label" "$desc"); fi
+    done
+    if ((${#rows[@]} == 0)); then
+        [[ $mode == --if-pending ]] || z --info --text="Nothing left to set up. 🎉\n(Run with --all to redo a step.)"
+        exit 0
+    fi
+
+    local chosen rc
+    chosen=$(z --list --checklist --height=460 --width=820 --separator=' ' \
+        --text="A few things need you (logins happen in your browser). Unticked items are asked again at next login." \
+        --column="" --column="id" --column="Task" --column="What happens" --hide-column=2 --print-column=2 \
+        --ok-label="Start" --cancel-label="Later" --extra-button="Don't show at login" "${rows[@]}")
+    rc=$?
+    if [[ $chosen == "Don't show at login" ]]; then
+        touch "$DONE_DIR/dismissed"
+        z --info --text="OK. Open it again any time with:\n<tt>arch-setup-wizard</tt>"
+        exit 0
+    fi
+    ((rc == 0)) || exit 0
+
+    local done=() left=()
+    for id in $chosen; do
+        if "task_$id"; then done+=("$id"); else left+=("$id"); fi
+    done
+    z --info --text="Done: ${done[*]:-nothing}\nStill to do: ${left[*]:-nothing}${left:+\n\nThe wizard comes back at next login (or run arch-setup-wizard).}"
+}
+
+main "$@"

@@ -1,0 +1,85 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "margin-top": 6,
+    "margin-left": 10,
+    "margin-right": 10,
+    "exclusive": true,
+    "spacing": 4,
+    "passthrough": false,
+
+    "modules-left": ["hyprland/workspaces", "wlr/taskbar"],
+    "modules-center": ["clock"],
+    "modules-right": ["custom/gpu", "cpu", "memory", "network", "bluetooth", "pulseaudio", "custom/windows", "custom/power"],
+
+    "hyprland/workspaces": {
+        "format": "{id}",
+        "on-click": "activate"
+    },
+
+    "wlr/taskbar": {
+        "format": "{icon}",
+        "icon-size": 20,
+        "icon-theme": "Papirus",
+        "tooltip-format": "{title}",
+        "on-click": "activate",
+        "on-click-middle": "close"
+    },
+
+    "clock": {
+        "format": "<b>{:%a %d %b, %H:%M}</b>",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "on-click": "/opt/google/chrome/google-chrome --profile-directory=Default --app-id=kjbdgfilnfhdoflbpgamdcdgpehopbep"
+    },
+
+    "custom/gpu": {
+        "exec": "cat /sys/class/drm/card0/device/gpu_busy_percent",
+        "format": "󰢮 {}%",
+        "interval": 2
+    },
+
+    "cpu": {
+        "format": " {usage}%",
+        "interval": 2
+    },
+
+    "memory": {
+        "format": " {percentage}%",
+        "interval": 2
+    },
+
+    "network": {
+        "format-wifi": "󰈀 {essid}",
+        "format-ethernet": "󰈀 Wired",
+        "format-disconnected": "⚠ Disconnected",
+        "tooltip-format": "{ifname} via {gwaddr}",
+        "on-click": "nm-connection-editor"
+    },
+
+    "bluetooth": {
+        "format": "󰂯",
+        "format-disabled": "󰂲",
+        "format-off": "󰂲",
+        "format-connected": "󰂱",
+        "on-click": "blueman-manager"
+    },
+
+    "pulseaudio": {
+        "format": "󰕾 {volume}%",
+        "on-click": "pavucontrol"
+    },
+
+    "custom/power": {
+        "format": "⏻",
+        "tooltip": false,
+        "on-click": "pkill wlogout || wlogout"
+    },
+    "custom/windows": {
+        "exec": "echo 'win'",
+        "format": "\uf17a",
+        "tooltip": "Reboot to Windows (one-time only)",
+        "interval": "once",
+        "on-click": "/usr/local/bin/boot-to-windows.sh"
+    }
+}

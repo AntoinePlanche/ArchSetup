@@ -1,0 +1,54 @@
+theme = Catppuccin Frappe
+# Darker base (Catppuccin Frappe "crust") so the dimmed image sits behind the text
+background = #1e2030
+background-opacity = 0.92
+background-blur-radius = 200
+cursor-style = block
+scrollback-limit = 4294967296
+# background-image is set by ~/.local/bin/ghostty-rotate-bg in background.ghostty (local, not in git)
+config-file = ?background.ghostty
+background-image-fit=cover
+foreground = #FFFFFF
+minimum-contrast = 10
+background-image-opacity = 0.15
+# Tab titles are tab numbers, set by ~/.config/zsh/ghostty-tab-number.zsh
+shell-integration-features = no-title
+window-new-tab-position = end
+
+# --- macOS-like keys: CTRL = app shortcuts, ALT+C = interrupt ---
+keybind = ctrl+c=copy_to_clipboard
+# performable: if Ghostty cannot paste here (e.g. search box focused), let the key through
+keybind = performable:ctrl+v=paste_from_clipboard
+# ALT+C sends the interrupt signal (what CTRL+C does in a normal terminal)
+keybind = alt+c=text:\x03
+keybind = ctrl+t=new_tab
+keybind = ctrl+w=close_tab:this
+keybind = ctrl+f=start_search
+# CTRL+number = tab N; ALT+number goes back to the programs running inside
+keybind = ctrl+digit_1=goto_tab:1
+keybind = alt+digit_1=unbind
+keybind = alt+1=unbind
+keybind = ctrl+digit_2=goto_tab:2
+keybind = alt+digit_2=unbind
+keybind = alt+2=unbind
+keybind = ctrl+digit_3=goto_tab:3
+keybind = alt+digit_3=unbind
+keybind = alt+3=unbind
+keybind = ctrl+digit_4=goto_tab:4
+keybind = alt+digit_4=unbind
+keybind = alt+4=unbind
+keybind = ctrl+digit_5=goto_tab:5
+keybind = alt+digit_5=unbind
+keybind = alt+5=unbind
+keybind = ctrl+digit_6=goto_tab:6
+keybind = alt+digit_6=unbind
+keybind = alt+6=unbind
+keybind = ctrl+digit_7=goto_tab:7
+keybind = alt+digit_7=unbind
+keybind = alt+7=unbind
+keybind = ctrl+digit_8=goto_tab:8
+keybind = alt+digit_8=unbind
+keybind = alt+8=unbind
+keybind = ctrl+digit_9=last_tab
+keybind = alt+digit_9=unbind
+keybind = alt+9=unbind

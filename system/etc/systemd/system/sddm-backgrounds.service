@@ -1,0 +1,7 @@
+[Unit]
+Description=Copy ~/Pictures/Logging into the Liquid Glass SDDM theme
+# SDDM runs as its own user and can't read @HOME@ (mode 700)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rsync -a --delete --chmod=D755,F644 --include=*.jpg --include=*.jpeg --include=*.png --include=*.webp --exclude=* @HOME@/Pictures/Logging/ /usr/share/sddm/themes/liquid-glass/backgrounds/

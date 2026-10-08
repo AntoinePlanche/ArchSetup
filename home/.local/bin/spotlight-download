@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Download Windows Spotlight wallpapers (4K landscape) into ~/Pictures/Logging.
+
+Same API as https://github.com/ORelio/Spotlight-Downloader (Spotlight v4).
+Files are named "<Title> — <Location>.jpg" so the login screen can caption them.
+Usage: spotlight-download [COUNT]   (new images to fetch, default 12)
+Only the newest KEEP images are kept, like Windows rotating its pictures.
+"""
+import json
+import re
+import sys
+import urllib.request
+from pathlib import Path
+
+API = ("https://fd.api.iris.microsoft.com/v4/api/selection"
+       "?placement=88000820&bcnt=4&country=US&locale=en-US&fmt=json")
+OUT = Path.home() / "Pictures" / "Logging"
+KEEP = 40
+
+
+def fetch_batch():
+    with urllib.request.urlopen(API, timeout=20) as r:
+        items = json.load(r)["batchrsp"]["items"]
+    for item in items:
+        ad = json.loads(item["item"])["ad"]
+        location = (ad.get("iconHoverText") or "").split("\r\n")[0].strip()
+        yield ad["title"].strip(), location, ad["landscapeImage"]["asset"]
+
+
+def safe(name):
+    return re.sub(r'[*?"<>|]', "", re.sub(r"[/\\:]", "-", name)).strip(" .")
+
+
+def main():
+    want = int(sys.argv[1]) if len(sys.argv) > 1 else 12
+    OUT.mkdir(parents=True, exist_ok=True)
+    have = {p.name for p in OUT.glob("*.jpg")}
+    got, attempts = 0, 0
+    while got < want and attempts < want * 3:  # the API often repeats images
+        attempts += 1
+        for title, location, url in fetch_batch():
+            name = safe(f"{title} — {location}" if location else title) + ".jpg"
+            if name in have or got >= want:
+                continue
+            tmp = OUT / (name + ".part")
+            urllib.request.urlretrieve(url, tmp)
+            tmp.rename(OUT / name)
+            have.add(name)
+            got += 1
+            print(f"  {name}")
+    old = sorted(OUT.glob("*.jpg"), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]
+    for p in old:
+        p.unlink()
+    print(f"{got} new image(s) in {OUT}" + (f", removed {len(old)} old" if old else ""))
+
+
+if __name__ == "__main__":
+    main()

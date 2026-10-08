@@ -1,0 +1,6 @@
+# Installed on the original machine but superseded (quickshell replaced waybar/hyprpanel,
+# liquid-glass replaced the corners SDDM theme). Kept so "same packages" stays true.
+waybar
+ags-hyprpanel-git
+sddm-theme-corners-git
+neofetch

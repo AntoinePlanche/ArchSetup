@@ -1,0 +1,11 @@
+# AUR packages (installed with paru)
+google-chrome
+visual-studio-code-bin
+opencode-bin
+t3code-bin
+herdr
+candy-icons-git
+folder-color-git
+kora-icon-theme
+tela-circle-icon-theme-git
+whitesur-icon-theme

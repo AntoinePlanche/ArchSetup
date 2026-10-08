@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""Create a recurring Google Calendar event with phone reminders.
+
+Uses the Google account configured in Evolution (evolution-data-server),
+so no Google Cloud project or extra login is needed.
+
+Examples:
+  gcalendar-events "Vaccine booster" --start 2026-11-03 --every 5y --count 6 --reminder 1w --reminder 1d
+  gcalendar-events "Dentist" --start "2026-11-10 14:30" --duration 45m --every 6mo --until 2030-12-31 --reminder 1d --reminder 2h
+  gcalendar-events "Change smoke alarm battery" --start 2027-01-01 --every 1y --forever --reminder 1w --dry-run
+  gcalendar-events --list-calendars
+"""
+
+import argparse
+import re
+import sys
+import uuid
+from datetime import date, datetime, time, timedelta, timezone
+
+import gi
+
+gi.require_version("EDataServer", "1.2")
+gi.require_version("ECal", "2.0")
+gi.require_version("ICalGLib", "4.0")
+from gi.repository import ECal, EDataServer, GLib, ICalGLib  # noqa: E402
+
+# Google Calendar limits for reminders
+MAX_REMINDERS = 5
+MAX_REMINDER_MINUTES = 40320  # 4 weeks
+
+FREQ_UNITS = {
+    "d": "DAILY", "day": "DAILY", "days": "DAILY",
+    "w": "WEEKLY", "week": "WEEKLY", "weeks": "WEEKLY",
+    "mo": "MONTHLY", "month": "MONTHLY", "months": "MONTHLY",
+    "y": "YEARLY", "year": "YEARLY", "years": "YEARLY",
+}
+MINUTE_UNITS = {
+    "m": 1, "min": 1, "mins": 1, "minute": 1, "minutes": 1,
+    "h": 60, "hour": 60, "hours": 60,
+    "d": 1440, "day": 1440, "days": 1440,
+    "w": 10080, "week": 10080, "weeks": 10080,
+}
+
+
+def split_amount(text):
+    m = re.fullmatch(r"\s*(\d+)\s*([a-zA-Z]+)\s*", text)
+    if not m or int(m.group(1)) < 1:
+        raise argparse.ArgumentTypeError(f"invalid amount '{text}' (expected e.g. 5y, 15m, '2 weeks')")
+    return int(m.group(1)), m.group(2).lower()
+
+
+def parse_every(text):
+    n, unit = split_amount(text)
+    if unit not in FREQ_UNITS:
+        raise argparse.ArgumentTypeError(f"unknown frequency unit '{unit}' (use d, w, mo, y)")
+    return FREQ_UNITS[unit], n
+
+
+def parse_minutes(text):
+    n, unit = split_amount(text)
+    if unit not in MINUTE_UNITS:
+        raise argparse.ArgumentTypeError(f"unknown unit '{unit}' (use m, h, d, w)")
+    return n * MINUTE_UNITS[unit]
+
+
+def parse_when(text):
+    """Return a date (all-day) or a naive datetime."""
+    text = text.strip()
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+            return date.fromisoformat(text)
+        return datetime.fromisoformat(text.replace("T", " "))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid date '{text}' (expected YYYY-MM-DD or 'YYYY-MM-DD HH:MM')")
+
+
+def system_timezone():
+    try:
+        with open("/etc/timezone") as f:
+            return f.read().strip()
+    except OSError:
+        pass
+    import os
+    path = os.path.realpath("/etc/localtime")
+    return path.split("zoneinfo/", 1)[1] if "zoneinfo/" in path else "UTC"
+
+
+def is_all_day(value):
+    return isinstance(value, date) and not isinstance(value, datetime)
+
+
+def human_minutes(minutes):
+    for size, unit in ((10080, "week"), (1440, "day"), (60, "hour"), (1, "minute")):
+        if minutes % size == 0:
+            n = minutes // size
+            return f"{n} {unit}{'s' if n > 1 else ''}"
+
+
+def ical_trigger(minutes):
+    if minutes % 10080 == 0:
+        return f"-P{minutes // 10080}W"
+    if minutes % 1440 == 0:
+        return f"-P{minutes // 1440}D"
+    if minutes % 60 == 0:
+        return f"-PT{minutes // 60}H"
+    return f"-PT{minutes}M"
+
+
+def ical_text(value):
+    return value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def build_rrule(args, tz):
+    freq, interval = args.every
+    rule = f"FREQ={freq};INTERVAL={interval}"
+    if args.count:
+        rule += f";COUNT={args.count}"
+    elif args.until:
+        until = args.until
+        if is_all_day(args.start):
+            until_day = until.date() if isinstance(until, datetime) else until
+            rule += f";UNTIL={until_day:%Y%m%d}"
+        else:
+            # Date-only "until" means "up to the end of that day"
+            if not isinstance(until, datetime):
+                until = datetime.combine(until, time(23, 59, 59))
+            from zoneinfo import ZoneInfo
+            until_utc = until.replace(tzinfo=ZoneInfo(tz)).astimezone(timezone.utc)
+            rule += f";UNTIL={until_utc:%Y%m%dT%H%M%SZ}"
+    return rule
+
+
+def build_vevent(args, tzid):
+    """Return the VEVENT as iCalendar text."""
+    lines = [
+        "BEGIN:VEVENT",
+        f"UID:{uuid.uuid4()}",
+        f"DTSTAMP:{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}",
+        f"SUMMARY:{ical_text(args.title)}",
+    ]
+    if is_all_day(args.start):
+        days = max(1, args.duration // 1440) if args.duration else 1
+        lines.append(f"DTSTART;VALUE=DATE:{args.start:%Y%m%d}")
+        lines.append(f"DTEND;VALUE=DATE:{args.start + timedelta(days=days):%Y%m%d}")
+    else:
+        end = args.start + timedelta(minutes=args.duration or 60)
+        lines.append(f"DTSTART;TZID={tzid}:{args.start:%Y%m%dT%H%M%S}")
+        lines.append(f"DTEND;TZID={tzid}:{end:%Y%m%dT%H%M%S}")
+    lines.append(f"RRULE:{build_rrule(args, args.tz)}")
+    if args.description:
+        lines.append(f"DESCRIPTION:{ical_text(args.description)}")
+    if args.location:
+        lines.append(f"LOCATION:{ical_text(args.location)}")
+    for minutes in sorted(set(args.reminder)):
+        lines += [
+            "BEGIN:VALARM",
+            "ACTION:DISPLAY",
+            f"DESCRIPTION:{ical_text(args.title)}",
+            f"TRIGGER:{ical_trigger(minutes)}",
+            "END:VALARM",
+        ]
+    lines.append("END:VEVENT")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def next_occurrences(comp, n=3):
+    rrule = comp.get_first_property(ICalGLib.PropertyKind.RRULE_PROPERTY).get_rrule()
+    it = ICalGLib.RecurIterator.new(rrule, comp.get_dtstart())
+    out = []
+    while len(out) < n:
+        t = it.next()
+        if t is None or t.is_null_time():
+            break
+        out.append(t.as_ical_string())
+    return out
+
+
+def pretty_ical_time(value):
+    if len(value) == 8:
+        return f"{value[:4]}-{value[4:6]}-{value[6:]}"
+    return f"{value[:4]}-{value[4:6]}-{value[6:8]} {value[9:11]}:{value[11:13]}"
+
+
+def calendars(registry):
+    return [s for s in registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR) if s.get_enabled()]
+
+
+def main():
+    p = argparse.ArgumentParser(
+        prog="gcalendar-events",
+        description="Create a recurring Google Calendar event with phone reminders (via Evolution).",
+        epilog=__doc__.split("\n", 5)[5],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("title", nargs="?", help="event title")
+    p.add_argument("--start", type=parse_when,
+                   help="first occurrence: YYYY-MM-DD (all-day) or 'YYYY-MM-DD HH:MM'")
+    p.add_argument("--every", type=parse_every,
+                   help="repeat interval: Nd, Nw, Nmo, Ny (e.g. 5y, 6mo, 2w)")
+    end = p.add_mutually_exclusive_group()
+    end.add_argument("--count", type=int, help="total number of occurrences")
+    end.add_argument("--until", type=parse_when, help="last possible date: YYYY-MM-DD or 'YYYY-MM-DD HH:MM'")
+    end.add_argument("--forever", action="store_true", help="repeat with no end")
+    p.add_argument("--reminder", action="append", type=parse_minutes, default=[], metavar="BEFORE",
+                   help="phone notification before the event: 5m, 15m, 2h, 1d, 1w (repeatable, max 5, max 4w)")
+    p.add_argument("--duration", type=parse_minutes,
+                   help="event length: 30m, 1h... (default 1h; all-day events: 1d)")
+    p.add_argument("--description", help="event description")
+    p.add_argument("--location", help="event location")
+    p.add_argument("--calendar", default="Google",
+                   help="Evolution calendar name (default: %(default)s, see --list-calendars)")
+    p.add_argument("--tz", default=system_timezone(), help="IANA timezone (default: system, %(default)s)")
+    p.add_argument("--list-calendars", action="store_true", help="list Evolution calendars and exit")
+    p.add_argument("--dry-run", action="store_true", help="print the event instead of creating it")
+    args = p.parse_args()
+
+    registry = EDataServer.SourceRegistry.new_sync(None)
+
+    if args.list_calendars:
+        for s in calendars(registry):
+            print(s.get_display_name())
+        return
+
+    if not args.title or not args.start or not args.every:
+        p.error("title, --start and --every are required")
+    if not (args.count or args.until or args.forever):
+        p.error("one of --count, --until or --forever is required")
+    if args.count is not None and args.count < 1:
+        p.error("--count must be at least 1")
+    if len(set(args.reminder)) > MAX_REMINDERS:
+        p.error(f"Google Calendar allows at most {MAX_REMINDERS} reminders per event")
+    if any(m > MAX_REMINDER_MINUTES for m in args.reminder):
+        p.error("Google Calendar reminders can be at most 4 weeks (4w) before the event")
+    if args.until:
+        start_day = args.start.date() if isinstance(args.start, datetime) else args.start
+        until_day = args.until.date() if isinstance(args.until, datetime) else args.until
+        if until_day < start_day:
+            p.error("--until is before --start")
+
+    zone = ICalGLib.Timezone.get_builtin_timezone(args.tz)
+    if zone is None:
+        p.error(f"unknown timezone '{args.tz}'")
+
+    comp = ICalGLib.Component.new_from_string(build_vevent(args, zone.get_tzid()))
+
+    if args.dry_run:
+        print(comp.as_ical_string(), end="")
+    else:
+        source = next((s for s in calendars(registry) if s.get_display_name() == args.calendar), None)
+        if source is None:
+            names = ", ".join(s.get_display_name() for s in calendars(registry))
+            sys.exit(f"error: no Evolution calendar named '{args.calendar}' (available: {names})")
+        try:
+            client = ECal.Client.connect_sync(source, ECal.ClientSourceType.EVENTS, 30, None)
+            if not is_all_day(args.start):
+                client.add_timezone_sync(zone, None)
+            client.create_object_sync(comp, ECal.OperationFlags.NONE, None)
+        except GLib.Error as e:
+            sys.exit(f"error: could not create the event in '{args.calendar}': {e.message}")
+        print(f"Created in '{args.calendar}': {args.title}")
+
+    print(f"Repeats: {build_rrule(args, args.tz)}")
+    if args.reminder:
+        print("Remind:  " + ", ".join(human_minutes(m) + " before" for m in sorted(set(args.reminder))))
+    else:
+        print("Remind:  none")
+    print("Next:    " + ", ".join(pretty_ical_time(t) for t in next_occurrences(comp)))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,59 @@
+# Paths in $HOME that become symlinks into home/ of this repo.
+# Edit a file in place (e.g. ~/.config/hypr/hyprland.lua) and the change is already in the repo;
+# `git pull` on another machine updates it there.
+#
+# A directory line links the whole directory (new files show up in git status; *.bak* and
+# runtime files are ignored by .gitignore). Use file lines when an app keeps state next to its config.
+
+# Desktop
+.config/hypr
+.config/quickshell
+.config/rofi
+.config/ghostty
+.config/fastfetch
+.config/cava
+.config/btop
+.config/gtk-4.0
+.config/mimeapps.list
+.config/waybar
+
+# Shell
+.zshenv
+.zprofile
+.zshrc
+.config/zsh/ghostty-tab-number.zsh
+
+# Tools (file by file: these directories also hold logs, sockets, node_modules...)
+.config/paru/paru.conf
+.config/herdr/config.toml
+.config/llama/server/environment.conf
+.config/opencode/opencode.jsonc
+.config/opencode/tui.jsonc
+.config/opencode/package.json
+.config/opencode/plugins/herdr-agent-state.js
+
+# Scripts
+.local/bin/auto-update.sh
+.local/bin/ghostty-rotate-bg
+.local/bin/spotlight
+.local/bin/spotlight-download
+.local/bin/sudo-askpass
+.local/bin/gcalendar-events
+.local/bin/boot-to-windows
+.local/bin/arch-setup-wizard
+
+# Scheduled jobs (systemd user timers; enabled by steps/system.sh)
+.config/systemd/user/rclone-sync.service
+.config/systemd/user/rclone-sync.timer
+.config/systemd/user/system-update.service
+.config/systemd/user/system-update.timer
+.config/systemd/user/ghostty-rotate-bg.service
+.config/systemd/user/ghostty-rotate-bg.timer
+.config/systemd/user/spotlight-download.service
+.config/systemd/user/spotlight-download.timer
+.config/systemd/user/llama-server.service.d/override.conf
+
+# R2 sync: the script and its filters are linked; bisync-state/ and the log stay local in ~/rclone-sync
+rclone-sync/rclone-sync.sh
+rclone-sync/filters-documents.txt
+rclone-sync/filters-pictures.txt

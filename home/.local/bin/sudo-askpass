@@ -1,0 +1,3 @@
+#!/bin/sh
+# GUI password prompt for `sudo -A` (SUDO_ASKPASS). Used by Claude Code for sudo commands.
+exec zenity --password --title="sudo" --text="${1:-Password for sudo:}" 2>/dev/null

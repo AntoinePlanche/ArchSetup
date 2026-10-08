@@ -1,0 +1,15 @@
+[Unit]
+Description=Weekly Full System & AUR Update Timer
+
+[Timer]
+# Check 5 min after each login (network + notifications are up by then),
+# and once a day while the session stays open. The script itself skips
+# if the last *successful* update is less than 7 days old, so an
+# interrupted run is retried at the next login.
+OnStartupSec=5min
+OnCalendar=daily
+Persistent=true
+Unit=system-update.service
+
+[Install]
+WantedBy=timers.target

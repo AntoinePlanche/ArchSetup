@@ -1,0 +1,63 @@
+# Liquid Glass — btop theme
+# Apple system palette (dark), tuned to match the Hyprland borders (#0066cc → #3388ff),
+# hyprlock (#0a84ff / #ff453a) and the translucent Quickshell/waybar look.
+# Background is left to the terminal (theme_background = False) so blur shows through.
+
+theme[main_bg]=""
+theme[main_fg]="#E8E8ED"
+theme[title]="#F5F5F7"
+theme[hi_fg]="#0A84FF"
+theme[selected_bg]="#1C2A3F"
+theme[selected_fg]="#64D2FF"
+theme[inactive_fg]="#48484A"
+theme[graph_text]="#8E8E93"
+theme[meter_bg]="#2C2C2E"
+theme[proc_misc]="#64D2FF"
+
+# Box outlines
+theme[cpu_box]="#3388FF"
+theme[mem_box]="#BF5AF2"
+theme[net_box]="#30D158"
+theme[proc_box]="#5E5CE6"
+theme[div_line]="#3A3A3C"
+
+# Temperature: cool teal → warm orange → hot red
+theme[temp_start]="#64D2FF"
+theme[temp_mid]="#FF9F0A"
+theme[temp_end]="#FF453A"
+
+# CPU: deep blue → system blue → cyan
+theme[cpu_start]="#0066CC"
+theme[cpu_mid]="#0A84FF"
+theme[cpu_end]="#64D2FF"
+
+# Memory
+theme[free_start]="#1E5631"
+theme[free_mid]="#30D158"
+theme[free_end]="#66D4CF"
+
+theme[cached_start]="#3A2A66"
+theme[cached_mid]="#5E5CE6"
+theme[cached_end]="#7D7AFF"
+
+theme[available_start]="#4A3A12"
+theme[available_mid]="#FF9F0A"
+theme[available_end]="#FFD60A"
+
+theme[used_start]="#5A1E3D"
+theme[used_mid]="#BF5AF2"
+theme[used_end]="#FF375F"
+
+# Network
+theme[download_start]="#0B3D2A"
+theme[download_mid]="#30D158"
+theme[download_end]="#66D4CF"
+
+theme[upload_start]="#3D1A3F"
+theme[upload_mid]="#BF5AF2"
+theme[upload_end]="#FF375F"
+
+# Process list gradient (top → bottom)
+theme[process_start]="#64D2FF"
+theme[process_mid]="#0A84FF"
+theme[process_end]="#5E5CE6"

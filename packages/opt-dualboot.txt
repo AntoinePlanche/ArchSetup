@@ -1,0 +1,3 @@
+# Only with a Windows dual boot: read/write the Windows partitions
+ntfs-3g
+ntfsprogs

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Spotlight-style launcher: rofi + gentler Hyprland blur while it's open.
+# Pressing the shortcut again closes it (toggle).
+
+if pkill -x rofi; then exit 0; fi
+
+# Softer blur so the desktop stays recognisable; restored on exit
+hyprctl -q eval 'hl.config({ decoration = { blur = { size = 3, passes = 2 } } })'
+trap "hyprctl -q eval 'hl.config({ decoration = { blur = { size = 8, passes = 3 } } })'" EXIT
+
+# combi = apps + system actions (see ~/.config/rofi/config.rasi). rofi-calc options are
+# command-line only: Enter copies the result.
+rofi -show combi \
+    -no-show-match -no-sort -no-history \
+    -calc-command "echo -n '{result}' | wl-copy" \
+    -calc-error-color "#ff8a80" \
+    "$@"

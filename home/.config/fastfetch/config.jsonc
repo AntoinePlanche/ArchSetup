@@ -1,0 +1,55 @@
+// fastfetch — shown in the first Ghostty window after login (see ~/.zshrc)
+{
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "logo": {
+        // Ghostty speaks the kitty image protocol: a real picture instead of ASCII art
+        "type": "kitty-direct",
+        "source": "~/.config/fastfetch/logo.png",
+        "width": 34,
+        "height": 17,
+        "padding": { "top": 2, "left": 3, "right": 4 }
+    },
+    "display": {
+        "separator": "  ",
+        "color": { "keys": "blue", "output": "white" },
+        "key": { "width": 16 }
+    },
+    "modules": [
+        "break",
+        {
+            "type": "title",
+            "format": "{#1;38;5;153}{user-name}{#0;38;5;245}@{#1;38;5;183}{host-name}"
+        },
+        "break",
+
+        { "type": "custom", "format": "{#38;5;111}╭─ System ──────────────────────────────────" },
+        { "type": "os",       "key": "│ \uf303 OS",       "keyColor": "38;5;111", "format": "{name} {arch}" },
+        { "type": "kernel",   "key": "│ \uf17c Kernel",   "keyColor": "38;5;111" },
+        { "type": "packages", "key": "│ 󰏖 Packages", "keyColor": "38;5;111" },
+        { "type": "uptime",   "key": "│ 󰅐 Uptime",   "keyColor": "38;5;111" },
+        { "type": "custom",   "format": "{#38;5;111}╰───────────────────────────────────────────" },
+
+        { "type": "custom", "format": "{#38;5;183}╭─ Desktop ─────────────────────────────────" },
+        { "type": "wm",       "key": "│ \uf2d0 WM",       "keyColor": "38;5;183", "format": "{pretty-name} {version}" },
+        // fastfetch would report Kiro's shell wrapper (kiro-cli-term); show the real terminal
+        { "type": "command",  "key": "│ \uf120 Terminal", "keyColor": "38;5;183",
+          "text": "printf 'Ghostty %s' \"${TERM_PROGRAM_VERSION%%-*}\"" },
+        { "type": "shell",    "key": "│ \uf489 Shell",    "keyColor": "38;5;183", "format": "{pretty-name} {version}" },
+        { "type": "display",  "key": "│ 󰍹 Display",  "keyColor": "38;5;183", "format": "{width}x{height} @ {refresh-rate} Hz" },
+        { "type": "theme",    "key": "│ 󰉼 Theme",    "keyColor": "38;5;183" },
+        { "type": "custom",   "format": "{#38;5;183}╰───────────────────────────────────────────" },
+
+        { "type": "custom", "format": "{#38;5;150}╭─ Hardware ────────────────────────────────" },
+        { "type": "board",    "key": "│ 󰘚 Board",    "keyColor": "38;5;150" },
+        { "type": "cpu",      "key": "│  CPU",      "keyColor": "38;5;150", "format": "{name} ({cores-logical}) @ {freq-max}" },
+        { "type": "gpu",      "key": "│ 󰢮 GPU",      "keyColor": "38;5;150", "hideType": "integrated", "format": "{name}" },
+        { "type": "memory",   "key": "│  Memory",   "keyColor": "38;5;150" },
+        { "type": "disk",     "key": "│ 󰋊 Disk",     "keyColor": "38;5;150", "folders": "/" },
+        { "type": "custom",   "format": "{#38;5;150}╰───────────────────────────────────────────" },
+
+        "break",
+        // Palette as background-colored blocks: Ghostty's minimum-contrast only rewrites
+        // foreground colors, so text dots would turn white
+        { "type": "custom", "format": "  {#48;5;111}   {#0} {#48;5;153}   {#0} {#48;5;183}   {#0} {#48;5;218}   {#0} {#48;5;217}   {#0} {#48;5;223}   {#0} {#48;5;150}   {#0} {#48;5;116}   {#0}" }
+    ]
+}

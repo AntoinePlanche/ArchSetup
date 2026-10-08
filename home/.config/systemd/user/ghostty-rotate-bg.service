@@ -1,0 +1,6 @@
+[Unit]
+Description=Rotate Ghostty background image
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/ghostty-rotate-bg

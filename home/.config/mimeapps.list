@@ -1,0 +1,24 @@
+[Default Applications]
+text/html=google-chrome.desktop
+x-scheme-handler/http=google-chrome.desktop
+x-scheme-handler/https=google-chrome.desktop
+x-scheme-handler/about=google-chrome.desktop
+x-scheme-handler/unknown=google-chrome.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+image/jpeg=org.gnome.Loupe.desktop
+image/png=org.gnome.Loupe.desktop
+image/gif=org.gnome.Loupe.desktop
+image/heic=org.gnome.Loupe.desktop
+image/heif=org.gnome.Loupe.desktop
+image/webp=org.gnome.Loupe.desktop
+image/avif=org.gnome.Loupe.desktop
+image/bmp=org.gnome.Loupe.desktop
+image/tiff=org.gnome.Loupe.desktop
+image/svg+xml=org.gnome.Loupe.desktop
+image/jxl=org.gnome.Loupe.desktop
+text/x-shellscript=com.microsoft.VSCode.desktop
+x-scheme-handler/t3code=com.t3tools.T3Code.desktop
+
+[Added Associations]
+text/x-shellscript=com.microsoft.VSCode.desktop;
+x-scheme-handler/t3code=com.t3tools.T3Code.desktop;

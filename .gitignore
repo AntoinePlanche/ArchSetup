@@ -1,0 +1,13 @@
+# Backups and editor leftovers inside linked directories
+*.bak
+*.bak-*
+*.bak.*
+*.backup
+*.v[0-9]*
+*~
+__pycache__/
+
+# Runtime / machine-local files that land in linked directories
+home/.config/ghostty/background.ghostty
+home/.config/hypr/monitors.lua
+home/.config/btop/btop.log

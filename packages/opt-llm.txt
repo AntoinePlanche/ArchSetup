@@ -1,0 +1,3 @@
+# Local LLM: llama.cpp Vulkan backend, run by `systemctl --user start llama-server` (`ai` in .zshrc)
+llama-cpp
+ggml-vulkan

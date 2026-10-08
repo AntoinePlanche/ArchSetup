@@ -1,0 +1,11 @@
+[SddmGreeterTheme]
+Name=Liquid Glass
+Description=macOS-style login: random Windows Spotlight wallpaper, big clock, glass password field
+Author=aplanche
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=liquid-glass
+Theme-API=2.0
+QtVersion=6

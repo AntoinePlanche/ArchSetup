@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Reboot into Windows once (next boot only), then back to Linux as usual.
+# The Windows Boot Manager entry number differs per machine, so it is looked up each time.
+# Needs /etc/sudoers.d/windows-boot (installed by arch-setup when dual boot is enabled).
+entry=$(efibootmgr | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Windows Boot Manager.*/\1/p' | head -1)
+if [[ -z $entry ]]; then
+    notify-send -u critical "Restart into Windows" "No Windows Boot Manager entry in the UEFI boot menu."
+    exit 1
+fi
+sudo -n efibootmgr --bootnext "$entry" >/dev/null && systemctl reboot

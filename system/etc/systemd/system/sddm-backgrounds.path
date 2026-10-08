@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch ~/Pictures/Logging for login-screen wallpapers
+
+[Path]
+PathChanged=@HOME@/Pictures/Logging
+Unit=sddm-backgrounds.service
+
+[Install]
+WantedBy=multi-user.target

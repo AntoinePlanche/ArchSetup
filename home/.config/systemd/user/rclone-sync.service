@@ -1,0 +1,6 @@
+[Unit]
+Description=Rclone bidirectional sync to R2 (Documents + Pictures)
+
+[Service]
+Type=oneshot
+ExecStart=%h/rclone-sync/rclone-sync.sh

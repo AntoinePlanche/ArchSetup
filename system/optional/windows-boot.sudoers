@@ -1,0 +1,1 @@
+@USER@ ALL=(ALL) NOPASSWD: /usr/bin/efibootmgr *, /usr/bin/bootctl set-next-entry *, /usr/bin/systemctl reboot

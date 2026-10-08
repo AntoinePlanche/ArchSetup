@@ -1,0 +1,28 @@
+/* Nautilus (GNOME Files): liquid glass.
+   Only the backgrounds are translucent; text and icons stay fully opaque.
+   Hyprland blurs the wallpaper behind the translucent window (decoration.blur).
+   Scoped to the Nautilus window so other GTK apps keep their normal look. */
+
+window.nautilus-window {
+  --window-bg-color: rgba(250, 250, 252, 0.62);
+  --view-bg-color: rgba(255, 255, 255, 0.30);
+  --sidebar-bg-color: rgba(240, 240, 246, 0.42);
+  --headerbar-bg-color: transparent;
+  --headerbar-shade-color: rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  window.nautilus-window {
+    --window-bg-color: rgba(26, 27, 34, 0.58);
+    --view-bg-color: rgba(18, 18, 24, 0.28);
+    --sidebar-bg-color: rgba(40, 42, 54, 0.40);
+    --headerbar-bg-color: transparent;
+    --headerbar-shade-color: rgba(0, 0, 0, 0.18);
+  }
+}
+
+/* Softer, rounder selection in the icon grid */
+window.nautilus-window gridview > child,
+window.nautilus-window .nautilus-grid-view gridview > child {
+  border-radius: 14px;
+}

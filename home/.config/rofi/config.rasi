@@ -1,0 +1,35 @@
+configuration {
+    /* Spotlight modes, switched with Tab (tabs shown at the bottom of the card):
+       Apps (apps + system actions) · Calculator (rofi-calc) · Files (files.sh) · Emoji (rofi-emoji) */
+    modes:               "combi,calc,files:/home/aplanche/.config/rofi/files.sh,emoji";
+    combi-modes:         "drun,system:/home/aplanche/.config/rofi/system-actions.sh";
+    combi-display-format: "{text}";
+
+    display-combi:            "󰀻  Apps";
+    display-calc:             "󰃬  Calculator";
+    display-files:            "󰉋  Files";
+    display-emoji:            "󰞅  Emoji";
+
+    show-icons:          true;
+    icon-theme:          "Papirus-Dark";
+    drun-display-format: "{name}[<span alpha='50%' size='small'>   {generic}</span>]";
+    markup-rows:         false;
+    display-drun:        "";
+    display-run:         "";
+    matching:            "fuzzy";
+    sort:                true;
+    sorting-method:      "fzf";
+    drun-match-fields:   "name,generic,exec,categories,keywords";
+    hover-select:        true;
+    me-select-entry:     "";
+    me-accept-entry:     "MousePrimary";
+
+    /* Tab / Shift+Tab switch modes, like Spotlight's categories */
+    kb-row-tab:          "";
+    kb-element-next:     "";
+    kb-element-prev:     "";
+    kb-mode-next:        "Tab,Control+Tab,Shift+Right";
+    kb-mode-previous:    "ISO_Left_Tab,Control+ISO_Left_Tab,Shift+Left";
+}
+
+@theme "~/.config/rofi/spotlight.rasi"
