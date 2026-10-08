@@ -41,11 +41,12 @@ step_secureboot() {
         if sb_enabled; then ok "Secure Boot is on, with your keys"; else warn "Keys enrolled but Secure Boot is off: enable it in the firmware"; fi
     elif sb_setup_mode; then
         sudo sbctl enroll-keys --microsoft >>"$LOG" 2>&1 || die "sbctl enroll-keys failed, see $LOG"
-        ok "Keys enrolled (yours + Microsoft). Turn Secure Boot on in the firmware after reboot, if it isn't."
+        ok "Keys enrolled (yours + Microsoft)."
+        sb_enabled || warn "Secure Boot is still OFF: switch it on in the firmware. The wizard reminds you (step 3/3)."
         conf_set SECUREBOOT enrolled
     else
-        warn "Firmware is not in Setup Mode: keys created and files signed, enrollment left to the"
-        warn "first-login wizard (it reboots into the firmware for you and explains the steps)."
+        warn "Firmware is not in Setup Mode: keys created and files signed. Secure Boot stays OFF for now;"
+        warn "the first-login wizard takes you through it (step 1/3 → 3/3, with firmware menu hints)."
         conf_set SECUREBOOT pending
     fi
 }

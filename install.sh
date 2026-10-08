@@ -47,6 +47,8 @@ Everything that can be done from here is done. Next:
   1. Reboot. SDDM shows the Liquid Glass login, log in to Hyprland.
   2. The setup wizard opens by itself: Secure Boot keys, R2/pCloud (rclone), GitHub,
      Google, NordVPN, Hyprland plugins... all graphical, with browser logins.
+     Secure Boot stays OFF until the wizard's last Secure Boot step (switching it on in the
+     firmware): that is expected. The wizard shows which step you are at.
      Re-open it any time with: $REPO/firstlogin/first-login.sh
 Log of this run: $LOG
 EOF

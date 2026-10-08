@@ -30,7 +30,7 @@ notify() { notify-send -a "$TITLE" "$@" 2>/dev/null || true; }
 # ---------------------------------------------------------------------------------------------
 # Tasks: "id|Label|description". pending_<id> returns 0 when the task still has to be done.
 TASKS=(
-    "secureboot|Secure Boot|Enroll your keys in the firmware (one or two reboots into the firmware setup)"
+    "secureboot|Secure Boot|Your own keys; Secure Boot stays OFF until the last step (up to two firmware reboots)"
     "r2|Cloudflare R2 (Documents + Pictures)|rclone remote + first sync, then every 5 minutes"
     "pcloud|pCloud|rclone remote, browser login"
     "github|Git + GitHub|Name/email for commits, GitHub login in the browser"
@@ -52,40 +52,80 @@ pending_hyprpm()   { ! hyprpm list 2>/dev/null | grep -q 'Plugin Hyprspace'; }
 pending_llm()      { has_opt llm && [[ ! -f $(llm_model_path) ]]; }
 
 # ---------------------------------------------------------------------------------------------
+# Secure Boot takes up to three firmware visits; each dialog says which stage you are at, so
+# "Secure Boot is still off" never looks like a bug.
+#   1/3 firmware not in Setup Mode -> reboot to firmware, clear the factory keys
+#   2/3 Setup Mode                 -> enroll our keys + Microsoft's here (no reboot needed for that)
+#   3/3 keys enrolled, still off   -> reboot to firmware, switch Secure Boot ON
+sb_stage() {
+    if sb_enrolled; then sb_enabled && echo done || echo 3
+    elif sb_setup_mode; then echo 2
+    else echo 1; fi
+}
+sb_task_desc() {
+    case $(sb_stage) in
+        1) echo "Step 1/3: reboot into the firmware and clear the factory keys (Setup Mode)" ;;
+        2) echo "Step 2/3: the firmware is ready, enroll your keys now (no reboot)" ;;
+        3) echo "Step 3/3: keys enrolled. Secure Boot is still OFF until you switch it on in the firmware" ;;
+    esac
+}
+SB_FIRMWARE_HINTS="Where to find it (it depends on the brand):
+  • ASUS: Advanced Mode (F7) → Boot → Secure Boot → Key Management
+  • MSI: Settings → Security → Secure Boot
+  • Gigabyte: BIOS → Secure Boot
+  • Lenovo: Security → Secure Boot
+  • Dell: Boot Configuration → Secure Boot → Expert Key Management
+  • HP: Security → Secure Boot Configuration"
+
 task_secureboot() {
-    if sb_enrolled; then
-        conf_set SECUREBOOT enrolled
-        if sb_enabled; then z --info --text="Secure Boot is on, with your own keys."; return 0; fi
-        z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="Your keys are enrolled.\n\nLast step: in the firmware, set <b>Secure Boot</b> to <b>Enabled</b>, save and exit." &&
-            systemctl reboot --firmware-setup
-        return 1
-    fi
-    if sb_setup_mode; then
-        z --info --text="The firmware is in Setup Mode: enrolling your keys now (your password is asked)."
-        sudo -A true || return 1
-        sudo -A test -f /var/lib/sbctl/keys/PK/PK.pem || sudo -A sbctl create-keys >/dev/null 2>&1
-        sb_cache_cert
-        sign_boot_files >/dev/null
-        if sudo -A sbctl enroll-keys --microsoft >>"$LOG" 2>&1; then
+    case $(sb_stage) in
+        done)
             conf_set SECUREBOOT enrolled
-            z --question --ok-label="Reboot to firmware" --cancel-label="Later" \
-                --text="Keys enrolled (yours + Microsoft's, so Windows and GPU firmware keep working).\n\nNow turn <b>Secure Boot</b> on in the firmware, save and exit." &&
+            z --info --text="✔ Secure Boot is <b>ON</b>, with your own keys. Nothing left to do."
+            return 0 ;;
+        3)
+            conf_set SECUREBOOT enrolled
+            z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="<b>Secure Boot, step 3/3</b>
+
+Your keys are enrolled, but <b>Secure Boot is still OFF</b>. That is expected, not a bug:
+the on/off switch only exists in the firmware, Linux cannot flip it.
+
+In the firmware: set <b>Secure Boot</b> to <b>Enabled</b>, then <b>Save &amp; Exit</b>.
+
+$SB_FIRMWARE_HINTS
+
+After the next login this wizard checks it and confirms (or shows this step again)." &&
                 systemctl reboot --firmware-setup
-        else
-            z --error --text="sbctl enroll-keys failed. Details in $LOG"
-        fi
-        return 1
-    fi
-    z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="To use your own Secure Boot keys, the firmware must be in <b>Setup Mode</b>.
+            return 1 ;;
+        2)
+            z --info --ok-label="Enroll" --text="<b>Secure Boot, step 2/3</b>\n\nThe firmware is in Setup Mode. Your keys are enrolled now, together with Microsoft's\n(so Windows and the GPU firmware keep booting). Your password is asked."
+            sudo true || return 1
+            sudo test -f /var/lib/sbctl/keys/PK/PK.pem || sudo sbctl create-keys >/dev/null 2>&1
+            sb_cache_cert
+            sign_boot_files >/dev/null
+            if sudo sbctl enroll-keys --microsoft >>"$LOG" 2>&1; then
+                conf_set SECUREBOOT enrolled
+                task_secureboot   # continues with step 3/3
+            else
+                z --error --text="sbctl enroll-keys failed, nothing was changed in the firmware.\nDetails in $LOG"
+            fi
+            return 1 ;;
+        1)
+            z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="<b>Secure Boot, step 1/3</b>
 
-In the firmware (Boot / Security / Secure Boot menu, the name depends on the brand):
-  1. Set Secure Boot mode to <b>Custom</b> (if there is such an option)
-  2. Choose <b>Reset to Setup Mode</b>, or <b>Delete all Secure Boot keys</b>
-  3. Leave Secure Boot <b>disabled</b> for now, save and exit
+To boot with your own keys, the firmware must first forget its factory keys (<b>Setup Mode</b>).
+In the firmware:
+  1. Secure Boot mode: <b>Custom</b> (if the option exists)
+  2. <b>Reset to Setup Mode</b>, or <b>Delete all Secure Boot keys</b> / <b>Clear keys</b>
+  3. Leave Secure Boot <b>off</b> for now, then <b>Save &amp; Exit</b>
 
-Back in Hyprland, this wizard opens again and enrolls the keys." &&
-        systemctl reboot --firmware-setup
-    return 1
+$SB_FIRMWARE_HINTS
+
+Back in Hyprland, this wizard opens again at step 2/3.
+Secure Boot stays off until step 3/3: that is expected." &&
+                systemctl reboot --firmware-setup
+            return 1 ;;
+    esac
 }
 
 task_r2() {
@@ -194,9 +234,15 @@ main() {
     [[ $mode == --if-pending && -f $DONE_DIR/dismissed ]] && exit 0
     command -v zenity >/dev/null || exit 0
 
+    if ! is_vm && [[ $(conf_get SECUREBOOT) == enrolled ]] && sb_enabled && ! is_done secureboot; then
+        mark_done secureboot
+        notify "Secure Boot is ON" "Your own keys are in use. Kernel updates are signed automatically."
+    fi
+
     local rows=() t id label desc
     for t in "${TASKS[@]}"; do
         IFS='|' read -r id label desc <<<"$t"
+        [[ $id == secureboot ]] && pending_secureboot && desc=$(sb_task_desc)
         if [[ $mode == --all ]] || "pending_$id"; then rows+=(TRUE "$id" "$label" "$desc"); fi
     done
     if ((${#rows[@]} == 0)); then
