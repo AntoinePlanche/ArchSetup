@@ -5,7 +5,7 @@
 #
 #   On the live USB:   iwctl                      (Wi-Fi only: station wlan0 connect <SSID>)
 #                      pacman -Sy git
-#                      git clone <this repo> && arch-setup/live-install.sh
+#                      git clone <this repo> && ArchSetup/live-install.sh
 #
 # Layout (same as the original machine, minus LVM):
 #   ESP 1 GiB vfat on /boot (UKIs live there) | btrfs (optionally in LUKS): @ @home @pkg @log
@@ -177,7 +177,7 @@ printf '%s:%s\n' "$USERNAME" "$USERPASS" | arch-chroot "$MNT" chpasswd
 # ---------------------------------------------------------------- hand-off to install.sh
 HOME_DIR="$MNT/home/$USERNAME"
 mkdir -p "$HOME_DIR/Workspace"
-cp -a "$REPO" "$HOME_DIR/Workspace/arch-setup"
+cp -a "$REPO" "$HOME_DIR/Workspace/ArchSetup"
 mkdir -p "$HOME_DIR/.config/arch-setup"
 # Pre-answer the dual-boot question (install.sh asks the rest)
 case $MODE in
@@ -187,11 +187,11 @@ echo "DUALBOOT=$db" >"$HOME_DIR/.config/arch-setup/machine.conf"
 # First login on tty1 starts install.sh by itself. This .zprofile is replaced by the real one
 # (a symlink into the repo) during the dotfiles step, so it only ever runs until then.
 cat >"$HOME_DIR/.zprofile" <<'Z'
-if [[ $(tty) == /dev/tty1 && -x ~/Workspace/arch-setup/install.sh ]]; then
-    echo "Starting arch-setup. Wi-Fi? Press Ctrl+C, run nmtui, then ~/Workspace/arch-setup/install.sh"
+if [[ $(tty) == /dev/tty1 && -x ~/Workspace/ArchSetup/install.sh ]]; then
+    echo "Starting ArchSetup. Wi-Fi? Press Ctrl+C, run nmtui, then ~/Workspace/ArchSetup/install.sh"
     sleep 3
     ping -c1 -W3 archlinux.org >/dev/null 2>&1 || nmtui
-    ~/Workspace/arch-setup/install.sh
+    ~/Workspace/ArchSetup/install.sh
 fi
 Z
 arch-chroot "$MNT" chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"

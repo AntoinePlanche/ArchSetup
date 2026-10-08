@@ -119,7 +119,7 @@ hl.on("hyprland.start", function()
     -- Welcome terminal with fastfetch (~/.config/fastfetch, hook at the end of ~/.zshrc)
     hl.exec_cmd("env FASTFETCH_ON_START=1 ghostty --class=com.welcome.fastfetch")
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP & gnome-keyring-daemon --start --components=secrets")
-    -- New-machine setup wizard (~/Workspace/arch-setup): logins, Secure Boot, plugins.
+    -- New-machine setup wizard (~/Workspace/ArchSetup): logins, Secure Boot, plugins.
     -- Exits at once when nothing is left to do.
     hl.exec_cmd("~/.local/bin/arch-setup-wizard --if-pending")
 end)

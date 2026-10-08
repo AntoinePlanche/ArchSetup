@@ -4,7 +4,7 @@ set -euo pipefail
 
 dir="$HOME/Pictures/Terminal"
 # Written to its own file (included by config.ghostty): config.ghostty is a symlink into
-# the arch-setup repo and must not change every 15 minutes.
+# the ArchSetup repo and must not change every 15 minutes.
 conf="$HOME/.config/ghostty/background.ghostty"
 
 current=$( { sed -n 's/^background-image *= *//p' "$conf" 2>/dev/null || true; } | sed "s|^~|$HOME|")

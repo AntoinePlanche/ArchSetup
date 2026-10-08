@@ -66,7 +66,7 @@ write_mkinitcpio_conf() {
 write_preset() {  # kernel package name
     local k=$1
     sudo install -Dm644 /dev/stdin "/etc/mkinitcpio.d/$k.preset" <<EOF
-# mkinitcpio preset file for the '$k' package (written by arch-setup: UKI only)
+# mkinitcpio preset file for the '$k' package (written by ArchSetup: UKI only)
 ALL_config="/etc/mkinitcpio.conf"
 ALL_kver="/boot/vmlinuz-$k"
 

@@ -15,7 +15,7 @@ export EDITOR="code --wait"
 export AWS_PROFILE="antplc-dev"
 export AWS_DEFAULT_REGION="us-west-2"
 
-# Machine-specific variables (GPU driver env...), written by arch-setup, not in git
+# Machine-specific variables (GPU driver env...), written by ArchSetup, not in git
 [[ -f ~/.config/zsh/local.zprofile ]] && source ~/.config/zsh/local.zprofile
 
 

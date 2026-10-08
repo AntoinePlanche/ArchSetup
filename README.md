@@ -1,4 +1,4 @@
-# arch-setup
+# ArchSetup
 
 Turns a fresh Arch install into this desktop: CachyOS kernel + Secure Boot, Hyprland + quickshell,
 same packages, same scripts and timers, R2 sync. Documents and Pictures are not in git: they come
@@ -12,14 +12,14 @@ back from Cloudflare R2 through `rclone-sync`.
 # a) Scripted, asks about dual boot and partitions accordingly (needed for Windows on the same SSD)
 iwctl                          # Wi-Fi only: station wlan0 connect <SSID>
 pacman -Sy git
-git clone https://github.com/<you>/arch-setup && arch-setup/live-install.sh
+git clone https://github.com/<you>/ArchSetup && ArchSetup/live-install.sh
 ```
 
 b) `archinstall`, with the **systemd-boot** bootloader and the ESP mounted on **/boot**
 (btrfs recommended for snapper). Then after reboot:
-`git clone https://github.com/<you>/arch-setup ~/Workspace/arch-setup`.
+`git clone https://github.com/<you>/ArchSetup ~/Workspace/ArchSetup`.
 
-**2. `~/Workspace/arch-setup/install.sh`** as your user, from the console. With option a) it starts by
+**2. `~/Workspace/ArchSetup/install.sh`** as your user, from the console. With option a) it starts by
 itself at the first login on tty1. It asks for the sudo password, whether to dual boot, and which
 optional groups to install. Everything else is automatic.
 
