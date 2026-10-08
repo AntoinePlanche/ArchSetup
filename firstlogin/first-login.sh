@@ -41,7 +41,7 @@ TASKS=(
     "llm|Local LLM model|Download Qwen3.6-35B-A3B (about 22 GB) for llama-server"
 )
 
-pending_secureboot() { ! is_vm && ! { sb_enrolled && sb_enabled; }; }
+pending_secureboot() { ! is_vm && [[ $(conf_get SECUREBOOT) != skipped ]] && ! { sb_enrolled && sb_enabled; }; }
 pending_r2()       { ! rclone listremotes 2>/dev/null | grep -qx 'r2:'; }
 pending_pcloud()   { ! rclone listremotes 2>/dev/null | grep -qx 'pcloud:' && ! is_done pcloud; }
 pending_github()   { [[ -z $(git config --global user.email) ]] || ! is_done github; }
@@ -77,27 +77,89 @@ SB_FIRMWARE_HINTS="Where to find it (it depends on the brand):
   • Dell: Boot Configuration → Secure Boot → Expert Key Management
   • HP: Security → Secure Boot Configuration"
 
+# Shown before every firmware reboot, while the user can still read it: once a wrong setting
+# blocks the boot, Linux (and this wizard) can't tell them anything.
+SB_RESCUE="<b>If the PC then refuses to boot</b> (red \"Secure Boot violation\" / \"Invalid signature\" screen):
+nothing is broken. Enter the firmware again (Del / F2 at power-on), set Secure Boot to
+<b>Disabled</b>, Save &amp; Exit: Linux starts and this wizard picks up where you are."
+
+# Why a firmware visit may not have taken effect, per step
+sb_retry_text() {
+    case $1 in
+        1) echo "<b>The firmware still has its factory keys.</b> Common causes:
+  • the change was not saved: use <b>Save &amp; Exit</b> (often F10), not just Exit
+  • Secure Boot mode is <b>Standard</b>: switch it to <b>Custom</b> first, then the key options appear
+  • the option is called differently: Clear Secure Boot keys / Delete all keys / Delete PK /
+    Reset to Setup Mode (only the PK has to go)
+  • the options are greyed out: disable <b>CSM</b> first, or set a <b>supervisor password</b> (Lenovo, HP, Dell)" ;;
+        3) echo "<b>Secure Boot is still off.</b> Common causes:
+  • the change was not saved: use <b>Save &amp; Exit</b> (often F10)
+  • the switch is greyed out: disable <b>CSM</b> first (ASUS: Boot → CSM), or set a supervisor password
+  • on ASUS boards the switch is <b>OS Type</b>: choose <b>Windows UEFI mode</b> (it means Secure Boot on)
+  • do <b>not</b> pick \"Restore factory keys\" / \"Install default keys\": that removes your keys again" ;;
+    esac
+}
+
+# Ask before a firmware reboot. Echoes reboot / later / skip.
+sb_ask() {
+    local text=$1 out rc
+    out=$(z --question --width=640 --ok-label="Reboot to firmware" --cancel-label="Later" \
+        --extra-button="Skip Secure Boot" --text="$text")
+    rc=$?
+    if [[ $out == "Skip Secure Boot" ]]; then echo skip
+    elif ((rc == 0)); then echo reboot
+    else echo later; fi
+}
+
+sb_reboot_or_not() {  # stage text
+    case $(sb_ask "$2") in
+        reboot)
+            conf_set SB_LAST_TRY "$1"   # compared with the firmware state after the reboot
+            systemctl reboot --firmware-setup ;;
+        skip)
+            conf_set SECUREBOOT skipped
+            z --info --text="Secure Boot skipped: Linux keeps booting without it and the wizard won't ask again.\nTo do it later: <tt>arch-setup-wizard --all</tt>, tick Secure Boot." ;;
+    esac
+    return 1
+}
+
 task_secureboot() {
-    case $(sb_stage) in
+    # Picked explicitly (e.g. with --all): a previous "skip" no longer applies
+    [[ $(conf_get SECUREBOOT) == skipped ]] && conf_set SECUREBOOT pending
+    local stage retry=""
+    stage=$(sb_stage)
+    # Back from the firmware but nothing changed: say why, instead of the same dialog again
+    if [[ $(conf_get SB_LAST_TRY) == "$stage" ]]; then
+        retry="⚠ <b>Last firmware visit did not take effect.</b>
+$(sb_retry_text "$stage")
+
+"
+    elif [[ $(conf_get SB_LAST_TRY) == 3 && $stage == 1 ]]; then
+        retry="⚠ <b>Your keys are no longer in the firmware</b> (\"Restore factory / default keys\" was probably used).
+No harm done: start again from step 1, step 2 enrolls your keys again.
+
+"
+    fi
+    case $stage in
         done)
-            conf_set SECUREBOOT enrolled
+            conf_set SECUREBOOT enrolled; conf_set SB_LAST_TRY ""
             z --info --text="✔ Secure Boot is <b>ON</b>, with your own keys. Nothing left to do."
             return 0 ;;
         3)
             conf_set SECUREBOOT enrolled
-            z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="<b>Secure Boot, step 3/3</b>
+            sb_reboot_or_not 3 "$retry<b>Secure Boot, step 3/3</b>
 
 Your keys are enrolled, but <b>Secure Boot is still OFF</b>. That is expected, not a bug:
 the on/off switch only exists in the firmware, Linux cannot flip it.
 
 In the firmware: set <b>Secure Boot</b> to <b>Enabled</b>, then <b>Save &amp; Exit</b>.
+Do not restore the factory/default keys: that would undo step 2.
 
 $SB_FIRMWARE_HINTS
 
-After the next login this wizard checks it and confirms (or shows this step again)." &&
-                systemctl reboot --firmware-setup
-            return 1 ;;
+$SB_RESCUE" ;;
         2)
+            conf_set SB_LAST_TRY ""
             z --info --ok-label="Enroll" --text="<b>Secure Boot, step 2/3</b>\n\nThe firmware is in Setup Mode. Your keys are enrolled now, together with Microsoft's\n(so Windows and the GPU firmware keep booting). Your password is asked."
             sudo true || return 1
             sudo test -f /var/lib/sbctl/keys/PK/PK.pem || sudo sbctl create-keys >/dev/null 2>&1
@@ -107,24 +169,24 @@ After the next login this wizard checks it and confirms (or shows this step agai
                 conf_set SECUREBOOT enrolled
                 task_secureboot   # continues with step 3/3
             else
-                z --error --text="sbctl enroll-keys failed, nothing was changed in the firmware.\nDetails in $LOG"
+                z --error --width=640 --text="Enrolling the keys failed: nothing was changed in the firmware.\n\n<tt>$(tail -n 5 "$LOG" | sed 's/&/\&amp;/g; s/</\&lt;/g')</tt>\n\nSome firmwares lock the key variables until they are fully in Setup Mode:\ngo back to step 1 and also clear the KEK/db keys (\"Delete all keys\")."
             fi
             return 1 ;;
         1)
-            z --question --ok-label="Reboot to firmware" --cancel-label="Later" --text="<b>Secure Boot, step 1/3</b>
+            sb_reboot_or_not 1 "$retry<b>Secure Boot, step 1/3</b>
 
 To boot with your own keys, the firmware must first forget its factory keys (<b>Setup Mode</b>).
 In the firmware:
   1. Secure Boot mode: <b>Custom</b> (if the option exists)
   2. <b>Reset to Setup Mode</b>, or <b>Delete all Secure Boot keys</b> / <b>Clear keys</b>
   3. Leave Secure Boot <b>off</b> for now, then <b>Save &amp; Exit</b>
+Turning Secure Boot <b>on</b> now, with the factory keys still there, blocks Linux from booting.
 
 $SB_FIRMWARE_HINTS
 
-Back in Hyprland, this wizard opens again at step 2/3.
-Secure Boot stays off until step 3/3: that is expected." &&
-                systemctl reboot --firmware-setup
-            return 1 ;;
+$SB_RESCUE
+
+Back in Hyprland, this wizard opens again at step 2/3." ;;
     esac
 }
 
@@ -234,7 +296,7 @@ main() {
     # "Don't show at login" never hides a Secure Boot setup that is half done (steps 2/3 and 3/3):
     # the firmware state is what tells us where the user is, so we pick up right there.
     if [[ $mode == --if-pending && -f $DONE_DIR/dismissed ]]; then
-        if is_vm || [[ $(sb_stage) != [23] ]]; then exit 0; fi
+        if ! pending_secureboot || [[ $(sb_stage) != [23] ]]; then exit 0; fi
     fi
     command -v zenity >/dev/null || exit 0
 
