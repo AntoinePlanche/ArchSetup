@@ -20,9 +20,17 @@ gpu_vendors() {
     done
 }
 
-# NVIDIA GPUs older than Turing (GTX 10xx and before) are not supported by the open kernel modules
-nvidia_is_legacy() {
-    lspci | grep -iE 'vga|3d' | grep -i nvidia | grep -qiE 'GTX (9|10)[0-9]{2}|GT [0-9]{3,4}|Quadro (P|M|K)|Titan (X|Xp)'
+# NVIDIA driver branch for the GPU, from the chip codename lspci prints (e.g. "GP106 [GeForce GTX 1060]"):
+#   open    Turing (TU) and newer: current driver, open kernel modules (590+ supports nothing older)
+#   580xx   Maxwell (GM), Pascal (GP), Volta (GV): 580 is NVIDIA's last branch for them (security fixes to 2028)
+#   470xx   Kepler (GK): unmaintained, too old for a good Hyprland experience
+nvidia_branch() {
+    local chip; chip=$(lspci | grep -iE 'vga|3d' | grep -i nvidia | grep -oE '\b(GK|GM|GP|GV|TU|GA|AD|GB|GH)[0-9]{3}' | head -1)
+    case $chip in
+        GK*) echo 470xx ;;
+        GM*|GP*|GV*) echo 580xx ;;
+        *) echo open ;;
+    esac
 }
 
 is_vm()      { [[ $(systemd-detect-virt 2>/dev/null) != none ]]; }

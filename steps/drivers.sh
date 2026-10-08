@@ -20,16 +20,23 @@ step_drivers() {
                 ((gaming)) && pkgs+=(lib32-mesa lib32-vulkan-intel)
                 ok "Intel GPU: Mesa ANV + VA-API" ;;
             nvidia)
-                if nvidia_is_legacy; then
-                    warn "NVIDIA GPU older than Turing: open modules unsupported, using nvidia-580xx-dkms (AUR)"
-                    pkgs+=(nvidia-580xx-dkms nvidia-580xx-utils linux-cachyos-headers linux-cachyos-lts-headers)
-                    ((gaming)) && pkgs+=(lib32-nvidia-580xx-utils)
-                else
-                    # Prebuilt CachyOS modules matching both kernels, no DKMS build
-                    pkgs+=(linux-cachyos-nvidia-open linux-cachyos-lts-nvidia-open nvidia-utils)
-                    ((gaming)) && pkgs+=(lib32-nvidia-utils)
-                fi
-                pkgs+=(egl-wayland libva-nvidia-driver nvidia-settings)
+                case $(nvidia_branch) in
+                    open)
+                        # Prebuilt CachyOS modules matching both kernels, no DKMS build
+                        pkgs+=(linux-cachyos-nvidia-open linux-cachyos-lts-nvidia-open nvidia-utils)
+                        ((gaming)) && pkgs+=(lib32-nvidia-utils) ;;
+                    580xx)
+                        warn "Maxwell/Pascal/Volta NVIDIA GPU: legacy 580xx driver (DKMS, built for both kernels)"
+                        pkgs+=(nvidia-580xx-dkms nvidia-580xx-utils linux-cachyos-headers linux-cachyos-lts-headers)
+                        ((gaming)) && pkgs+=(lib32-nvidia-580xx-utils) ;;
+                    470xx)
+                        warn "Kepler NVIDIA GPU: legacy 470xx driver. Hyprland on it is barely usable (no GBM fixes);"
+                        warn "if there is an integrated GPU, plug the screen there."
+                        pkgs+=(nvidia-470xx-dkms nvidia-470xx-utils linux-cachyos-headers linux-cachyos-lts-headers)
+                        ((gaming)) && pkgs+=(lib32-nvidia-470xx-utils) ;;
+                esac
+                pkgs+=(egl-wayland libva-nvidia-driver)
+                [[ $(nvidia_branch) == open ]] && pkgs+=(nvidia-settings) || pkgs+=("nvidia-$(nvidia_branch)-settings")
                 env+=("LIBVA_DRIVER_NAME=nvidia" "__GLX_VENDOR_LIBRARY_NAME=nvidia" "NVD_BACKEND=direct")
                 ok "NVIDIA GPU: proprietary driver" ;;
         esac
@@ -71,7 +78,7 @@ step_drivers() {
 
     mkdir -p "$(dirname "$LOCAL_ZPROFILE")"
     {
-        echo "# Machine-specific session variables, written by arch-setup steps/drivers.sh (not in git)"
+        echo "# Machine-specific session variables, written by ArchSetup steps/drivers.sh (not in git)"
         for v in "${env[@]}"; do echo "export $v"; done
     } >"$LOCAL_ZPROFILE"
 }
