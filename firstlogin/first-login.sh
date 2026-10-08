@@ -231,7 +231,11 @@ task_llm() {
 # ---------------------------------------------------------------------------------------------
 main() {
     local mode=${1:-}
-    [[ $mode == --if-pending && -f $DONE_DIR/dismissed ]] && exit 0
+    # "Don't show at login" never hides a Secure Boot setup that is half done (steps 2/3 and 3/3):
+    # the firmware state is what tells us where the user is, so we pick up right there.
+    if [[ $mode == --if-pending && -f $DONE_DIR/dismissed ]]; then
+        if is_vm || [[ $(sb_stage) != [23] ]]; then exit 0; fi
+    fi
     command -v zenity >/dev/null || exit 0
 
     if ! is_vm && [[ $(conf_get SECUREBOOT) == enrolled ]] && sb_enabled && ! is_done secureboot; then
@@ -264,6 +268,9 @@ main() {
     ((rc == 0)) || exit 0
 
     local done=() left=()
+    # Secure Boot last: its steps end with a reboot into the firmware, which would cut the
+    # other tasks short. Progress is read back from the firmware at the next login.
+    chosen=$(tr ' ' '\n' <<<"$chosen" | grep -vx secureboot; grep -qw secureboot <<<"$chosen" && echo secureboot)
     for id in $chosen; do
         if "task_$id"; then done+=("$id"); else left+=("$id"); fi
     done
