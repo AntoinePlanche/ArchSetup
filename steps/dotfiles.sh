@@ -11,7 +11,9 @@ step_dotfiles() {
         src="$REPO/home/$rel" dst="$HOME/$rel"
         [[ -e $src ]] || { warn "Missing in repo: home/$rel"; continue; }
         if [[ -L $dst && $(readlink "$dst") == "$src" ]]; then n=$((n + 1)); continue; fi
-        if [[ -e $dst || -L $dst ]]; then
+        if [[ -L $dst && ! -e $dst ]]; then
+            rm "$dst"   # dangling link, e.g. the repo was moved: nothing to back up
+        elif [[ -e $dst || -L $dst ]]; then
             mkdir -p "$backup/$(dirname "$rel")"
             mv "$dst" "$backup/$rel"
             moved=$((moved + 1))
