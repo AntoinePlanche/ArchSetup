@@ -16,6 +16,9 @@ step_kernel() {
 
     write_cmdline
     write_mkinitcpio_conf
+    # Boot splash: motherboard logo (firmware BGRT) + Arch logo + spinner. Read when the
+    # initramfs is built, so it must be in place before mkinitcpio runs below.
+    install_system_file etc/plymouth/plymouthd.conf
     local k
     for k in "${KERNELS[@]}"; do write_preset "$k"; done
     # Kernel install triggers mkinitcpio, which now builds the UKIs directly
