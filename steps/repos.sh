@@ -6,11 +6,13 @@ step_repos() {
     if grep -q '^\[cachyos' /etc/pacman.conf; then
         ok "Already configured: $(grep -o '^\[cachyos[^]]*\]' /etc/pacman.conf | paste -sd' ')"
     else
-        # Official installer: detects the CPU level, imports the key, installs keyring + mirrorlists
+        # Official installer: detects the CPU level, imports the key, installs keyring + mirrorlists.
+        # Its pacman prompts get `yes` through a redirect, not a pipe: with pipefail, `yes` being
+        # killed by SIGPIPE when the script exits would make the step fail.
         local tmp; tmp=$(mktemp -d)
         curl -fsSL https://mirror.cachyos.org/cachyos-repo.tar.xz -o "$tmp/repo.tar.xz" || die "Cannot download the CachyOS repo installer"
         tar -xf "$tmp/repo.tar.xz" -C "$tmp"
-        (cd "$tmp/cachyos-repo" && yes | sudo ./cachyos-repo.sh) >>"$LOG" 2>&1 || die "cachyos-repo.sh failed, see $LOG"
+        (cd "$tmp/cachyos-repo" && sudo ./cachyos-repo.sh < <(yes)) >>"$LOG" 2>&1 || die "cachyos-repo.sh failed, see $LOG"
         rm -rf "$tmp"
         ok "Added: $(grep -o '^\[cachyos[^]]*\]' /etc/pacman.conf | paste -sd' ')"
     fi

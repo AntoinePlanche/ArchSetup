@@ -269,9 +269,9 @@ task_hyprpm() {
         sudo -A true
         hyprpm update </dev/null
         echo "# Building Hyprspace…"
-        yes | hyprpm add https://github.com/KZDKM/Hyprspace
+        hyprpm add https://github.com/KZDKM/Hyprspace < <(yes)
         echo "# Building hyprland-plugins (hyprfocus)…"
-        yes | hyprpm add https://github.com/hyprwm/hyprland-plugins
+        hyprpm add https://github.com/hyprwm/hyprland-plugins < <(yes)
         hyprpm enable Hyprspace
         hyprpm enable hyprfocus
         hyprpm reload && hyprctl reload config-only
