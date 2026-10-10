@@ -33,7 +33,7 @@ TASKS=(
     "secureboot|Secure Boot|Your own keys; Secure Boot stays OFF until the last step (up to two firmware reboots)"
     "r2|Cloudflare R2 (Documents + Pictures)|rclone remote + first sync, then every 5 minutes"
     "pcloud|pCloud|rclone remote, browser login"
-    "github|Git + GitHub|Name/email for commits, GitHub login in the browser"
+    "github|Git + GitHub|Name/email for commits, GitHub sign-in in the browser (Git Credential Manager)"
     "google|Google account|Evolution: calendar for the bar and gcalendar-events, browser login"
     "browsers|Chrome + VS Code sync|Sign in to get bookmarks, extensions and settings back"
     "nordvpn|NordVPN|Browser login"
@@ -226,10 +226,14 @@ task_github() {
     [[ -n $name ]] && git config --global user.name "$name"
     [[ -n $email ]] && git config --global user.email "$email"
     git config --global init.defaultBranch main
-    pacman -Qq github-cli &>/dev/null || sudo -n pacman -S --needed --noconfirm github-cli >/dev/null 2>&1 || sudo -A pacman -S --needed --noconfirm github-cli >/dev/null
-    # Device-code login: the browser opens, the terminal shows the code to paste
-    in_terminal "gh auth login --hostname github.com --git-protocol https --web && gh auth setup-git"
-    gh auth status >/dev/null 2>&1 && { mark_done github; return 0; }
+    # Git Credential Manager: git asks it for credentials, it signs in through the browser
+    # (OAuth) and keeps the token in GNOME Keyring. Works for every git client (terminal, VS Code).
+    git-credential-manager configure >/dev/null 2>&1
+    git config --global credential.credentialStore secretservice
+    git-credential-manager github list 2>/dev/null | grep -q . ||
+        git-credential-manager github login --url https://github.com </dev/null >>"$LOG" 2>&1
+    git-credential-manager github list 2>/dev/null | grep -q . && { mark_done github; return 0; }
+    z --error --text="GitHub sign-in did not complete. The wizard asks again at next login."
     return 1
 }
 

@@ -9,3 +9,4 @@ folder-color-git
 kora-icon-theme
 tela-circle-icon-theme-git
 whitesur-icon-theme
+git-credential-manager-bin
