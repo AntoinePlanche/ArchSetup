@@ -9,13 +9,15 @@ cpu_vendor() {
     esac
 }
 
-# GPU vendors present, one per line: amd / nvidia / intel (PCI classes 0300 VGA, 0302 3D, 0380 display)
+# GPU vendors present, one per line: amd / nvidia / intel / virtual (PCI classes 0300 VGA, 0302 3D, 0380 display)
 gpu_vendors() {
     lspci -n | awk '$2 ~ /^03(00|02|80):/ {split($3, id, ":"); print id[1]}' | sort -u | while read -r v; do
         case $v in
             1002) echo amd ;;
             10de) echo nvidia ;;
             8086) echo intel ;;
+            # VM display adapters: virtio-gpu, QEMU std VGA, QXL, VMware SVGA, VirtualBox
+            1af4|1234|1b36|15ad|80ee) echo virtual ;;
         esac
     done
 }

@@ -15,6 +15,11 @@ step_drivers() {
                 pkgs+=(mesa vulkan-radeon rocm-smi-lib)
                 ((gaming)) && pkgs+=(lib32-mesa lib32-vulkan-radeon)
                 ok "AMD GPU: Mesa RADV" ;;
+            virtual)
+                # virtio-gpu (virgl / venus); other VM adapters fall back to vulkan-swrast below
+                pkgs+=(mesa vulkan-virtio)
+                ((gaming)) && pkgs+=(lib32-mesa lib32-vulkan-virtio)
+                ok "Virtual GPU: Mesa virtio" ;;
             intel)
                 pkgs+=(mesa vulkan-intel intel-media-driver)
                 ((gaming)) && pkgs+=(lib32-mesa lib32-vulkan-intel)
@@ -41,6 +46,15 @@ step_drivers() {
                 ok "NVIDIA GPU: proprietary driver" ;;
         esac
     done
+    # Always pin a Vulkan driver: otherwise the first package needing "vulkan-driver" makes
+    # pacman --noconfirm pick provider #1, which with the CachyOS repos is mesa-git
+    # (conflicts with mesa and aborts the install).
+    if [[ " ${pkgs[*]} " != *" vulkan-"* && " ${pkgs[*]} " != *"nvidia"*"utils"* ]]; then
+        pkgs+=(mesa vulkan-swrast)
+        ((gaming)) && pkgs+=(lib32-mesa lib32-vulkan-swrast)
+        warn "Unknown GPU: software Vulkan (vulkan-swrast)"
+    fi
+
     # Hybrid laptop: render on the iGPU, `prime-run app` for the dGPU
     if [[ $(gpu_vendors | wc -l) -gt 1 ]] && gpu_vendors | grep -qx nvidia; then
         pkgs+=(nvidia-prime)
