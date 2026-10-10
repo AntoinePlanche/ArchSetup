@@ -42,8 +42,8 @@ write_cmdline() {
     else
         cmd="root=UUID=$(findmnt -no UUID /)"
     fi
-    luks=$(root_luks_dev)
-    [[ -n $luks ]] && cmd="cryptdevice=UUID=$(lsblk -no UUID "$luks"):$(lsblk -rsno NAME,TYPE "$src" | awk '$2=="crypt"{print $1; exit}') $cmd"
+    luks=$(root_luks_dev)   # -d below: without it lsblk also prints the UUIDs of what is inside
+    [[ -n $luks ]] && cmd="cryptdevice=UUID=$(lsblk -dno UUID "$luks"):$(lsblk -rsno NAME,TYPE "$src" | awk '$2=="crypt"{print $1; exit}') $cmd"
     [[ $fstype == btrfs && -n $subvol ]] && cmd+=" rootflags=subvol=${subvol#/}"
     # Same options as the original machine: zram instead of zswap, quiet boot + Plymouth splash
     cmd+=" rw rootfstype=$fstype zswap.enabled=0 quiet loglevel=3 splash"
