@@ -308,6 +308,19 @@ main() {
     fi
     command -v zenity >/dev/null || exit 0
 
+    # At login the wizard starts while the desktop is still coming up. zenity (GTK) queries the
+    # settings portal on startup and blocks on D-Bus timeouts until it answers, which delayed the
+    # window by minutes in the VM test. Wait for the portal and the notification server (quickshell).
+    if [[ $mode == --if-pending ]]; then
+        local i
+        for i in $(seq 90); do
+            busctl --user list --no-pager 2>/dev/null | grep -q '^org.freedesktop.portal.Desktop ' &&
+                busctl --user list --no-pager 2>/dev/null | grep -q '^org.freedesktop.Notifications ' && break
+            sleep 1
+        done
+        sleep 2
+    fi
+
     if sb_supported && [[ $(conf_get SECUREBOOT) == enrolled ]] && sb_enabled && ! is_done secureboot; then
         mark_done secureboot
         notify "Secure Boot is ON" "Your own keys are in use. Kernel updates are signed automatically."

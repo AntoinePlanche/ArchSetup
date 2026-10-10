@@ -71,6 +71,14 @@ hl.window_rule({
     center = true,
 })
 
+-- Setup wizard (~/Workspace/ArchSetup/firstlogin): its dialogs float, centered, above the windows
+hl.window_rule({
+    name   = "arch-setup-wizard",
+    match  = { title = "^New machine setup$" },
+    float  = true,
+    center = true,
+})
+
 -- Règle de layer pour flouter waybar
 hl.layer_rule({
     match = { namespace = "waybar" },
