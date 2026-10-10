@@ -75,6 +75,8 @@ Per-machine state, never in git:
 ## Conventions
 
 - Bash, `set -euo pipefail` in entry points; steps are sourced, so they use `return`, not `exit`.
+- Under `set -e`, `cond && action` stops the installer silently when `action` fails (or when it is
+  the last line of a function and `cond` is false). Use `if cond; then action || warn …; fi`.
 - Output through `info/ok/warn/die/title` (they also write to the log). Long command output goes to `"$LOG"`.
 - `sudo cmd >>"$LOG"` is intentional (the log is user-owned); ignore shellcheck SC2024.
 - New machine question → `ask_choice`/`ask_multi` with a key, so it's asked once and stored.

@@ -80,8 +80,8 @@ step_drivers() {
 
     pkg_install "${pkgs[@]}"
 
-    has_bluetooth && sudo systemctl enable --now bluetooth.service >>"$LOG" 2>&1
-    is_laptop && sudo systemctl enable --now power-profiles-daemon.service >>"$LOG" 2>&1
+    if has_bluetooth; then sudo systemctl enable --now bluetooth.service >>"$LOG" 2>&1 || warn "Could not enable bluetooth"; fi
+    if is_laptop; then sudo systemctl enable --now power-profiles-daemon.service >>"$LOG" 2>&1 || warn "Could not enable power-profiles-daemon"; fi
     case $(virt_kind) in kvm|qemu) sudo systemctl enable qemu-guest-agent.service >>"$LOG" 2>&1 || true ;; esac
 
     if gpu_vendors | grep -qx nvidia; then

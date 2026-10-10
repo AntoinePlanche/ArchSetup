@@ -52,5 +52,5 @@ Everything that can be done from here is done. Next:
      Re-open it any time with: $REPO/firstlogin/first-login.sh
 Log of this run: $LOG
 EOF
-    confirm "Reboot now?" && systemctl reboot
+    if confirm "Reboot now?"; then systemctl reboot; fi
 fi

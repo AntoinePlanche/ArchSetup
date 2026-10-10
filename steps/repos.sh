@@ -23,7 +23,10 @@ step_repos() {
     # yay is the one used by ~/.local/bin/auto-update.sh.
     pkg_install paru yay
     # rust: rustup, never extra/rust (breaks against CachyOS llvm-libs)
-    pacman -Qq rust &>/dev/null && sudo pacman -Rdd --noconfirm rust >>"$LOG" 2>&1
+    # (exact name check: `pacman -Qq rust` also answers "rustup", which provides rust)
+    if [[ $(pacman -Qq rust 2>/dev/null) == rust ]]; then
+        sudo pacman -Rdd --noconfirm rust >>"$LOG" 2>&1
+    fi
     pkg_install rustup
     rustup default stable >>"$LOG" 2>&1 || warn "rustup default stable failed"
     ok "paru, yay and rustup ready"

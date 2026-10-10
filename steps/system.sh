@@ -27,7 +27,10 @@ step_system() {
     for svc in NetworkManager systemd-resolved systemd-timesyncd sddm keyd ananicy-cpp scx sddm-backgrounds.path; do
         sudo systemctl enable "$svc" >>"$LOG" 2>&1 || warn "Could not enable $svc"
     done
-    has_opt vpn && { sudo systemctl enable nordvpnd.service nordvpnd.socket >>"$LOG" 2>&1; sudo usermod -aG nordvpn "$USER"; }
+    if has_opt vpn; then
+        sudo systemctl enable nordvpnd.service nordvpnd.socket >>"$LOG" 2>&1 || warn "Could not enable nordvpnd"
+        sudo usermod -aG nordvpn "$USER" || warn "Could not add $USER to the nordvpn group"
+    fi
     ok "Services enabled"
 
     setup_snapper
