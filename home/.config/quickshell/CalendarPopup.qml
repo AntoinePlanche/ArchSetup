@@ -269,6 +269,14 @@ Popup {
                         onClicked: { pop.shell.openPopup = ""; Quickshell.execDetached(["evolution"]); }
                         Label { id: connectLbl; anchors.centerIn: parent; text: "Connect Google Calendar"; color: "white"; font.weight: Font.DemiBold; font.pixelSize: 12 }
                     }
+                    Label {
+                        visible: !pop.remote
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "In Evolution: File → New → Collection Account,\nyour Gmail address, then sign in in the browser"
+                        color: Theme.textFaint
+                        font.pixelSize: 10
+                    }
                 }
             }
         }

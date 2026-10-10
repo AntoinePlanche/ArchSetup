@@ -7,6 +7,8 @@ sushi
 loupe
 evolution
 libical
+evolution-data-server
+python-gobject
 discord
 claude-code
 hermes-agent-desktop

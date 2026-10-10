@@ -69,6 +69,10 @@ def main():
 
         client.generate_instances_sync(start_ts, end_ts, None, on_instance)
 
+    if not remote:
+        print("no online calendar: add your Google account in Evolution "
+              "(File -> New -> Collection Account), or click 'Connect Google Calendar' in the bar",
+              file=sys.stderr)
     events.sort(key=lambda ev: (ev["start"], not ev["allDay"]))
     json.dump({"remote": remote, "events": events}, sys.stdout)
 

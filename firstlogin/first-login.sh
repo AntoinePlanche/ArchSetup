@@ -236,7 +236,11 @@ task_github() {
 task_google() {
     z --info --ok-label="Open Evolution" --text="Evolution opens. Add your Google account:\n<b>File → New → Collection Account</b>, type your Gmail address, then sign in in the browser window.\n\nThe bar calendar and gcalendar-events use this account."
     evolution >/dev/null 2>&1 &
-    z --question --ok-label="Done" --cancel-label="Later" --text="Google account added in Evolution?" && { mark_done google; return 0; }
+    z --question --ok-label="Done" --cancel-label="Later" --text="Google account added in Evolution?" || return 1
+    if "$HOME/.local/bin/gcalendar-events" --list-calendars 2>/dev/null | grep -qx Google; then
+        mark_done google; return 0
+    fi
+    z --warning --text="No \"Google\" calendar in Evolution yet. It can take a minute to appear after signing in;\nthe wizard asks again at next login."
     return 1
 }
 

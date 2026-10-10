@@ -181,6 +181,14 @@ def pretty_ical_time(value):
     return f"{value[:4]}-{value[4:6]}-{value[6:8]} {value[9:11]}:{value[11:13]}"
 
 
+GOOGLE_HINT = """No Google account in Evolution yet. To connect it (once per machine):
+  1. open Evolution
+  2. File -> New -> Collection Account, type your Gmail address, then Look Up
+  3. sign in in the browser window that opens and allow calendar access
+The calendar then shows up as "Google" (check with: gcalendar-events --list-calendars).
+On a new machine, the setup wizard does this too: arch-setup-wizard"""
+
+
 def calendars(registry):
     return [s for s in registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR) if s.get_enabled()]
 
@@ -217,8 +225,10 @@ def main():
     registry = EDataServer.SourceRegistry.new_sync(None)
 
     if args.list_calendars:
-        for s in calendars(registry):
-            print(s.get_display_name())
+        names = [s.get_display_name() for s in calendars(registry)]
+        print("\n".join(names))
+        if "Google" not in names:
+            print(f"\n{GOOGLE_HINT}", file=sys.stderr)
         return
 
     if not args.title or not args.start or not args.every:
@@ -248,8 +258,9 @@ def main():
     else:
         source = next((s for s in calendars(registry) if s.get_display_name() == args.calendar), None)
         if source is None:
-            names = ", ".join(s.get_display_name() for s in calendars(registry))
-            sys.exit(f"error: no Evolution calendar named '{args.calendar}' (available: {names})")
+            names = [s.get_display_name() for s in calendars(registry)]
+            hint = "" if "Google" in names else f"\n\n{GOOGLE_HINT}"
+            sys.exit(f"error: no Evolution calendar named '{args.calendar}' (available: {', '.join(names)}){hint}")
         try:
             client = ECal.Client.connect_sync(source, ECal.ClientSourceType.EVENTS, 30, None)
             if not is_all_day(args.start):
