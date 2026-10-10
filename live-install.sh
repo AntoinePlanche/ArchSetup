@@ -41,8 +41,9 @@ timedatectl set-ntp true
 
 # ---------------------------------------------------------------- questions
 say "Disks"
-lsblk -dpno NAME,SIZE,MODEL,TRAN | grep -vE 'loop|sr[0-9]|usb' || true
-mapfile -t disks < <(lsblk -dpno NAME,TRAN,TYPE | awk '$3=="disk" && $2!="usb"{print $1}')
+lsblk -dpno NAME,SIZE,MODEL,TRAN | grep -vE 'loop|sr[0-9]|usb|zram' || true
+# TYPE before TRAN: VM disks (virtio) have an empty TRAN, which would shift the columns
+mapfile -t disks < <(lsblk -dpno NAME,TYPE,TRAN | awk '$2=="disk" && $3!="usb" && $1 !~ /zram/{print $1}')
 ((${#disks[@]})) || die "No internal disk found"
 DISK=$(choose "Install Linux on" "${disks[@]}")
 

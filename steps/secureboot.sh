@@ -14,6 +14,8 @@ SB_FILES=(
 # Read straight from the EFI variables: no root needed (the wizard checks this at every login)
 EFI_GLOBAL=8be4df61-93ca-11d2-aa0d-00e098032b8c
 efivar_byte() { od -An -tu1 "/sys/firmware/efi/efivars/$1-$EFI_GLOBAL" 2>/dev/null | awk '{print $NF}'; }
+# Firmware without Secure Boot support (e.g. a VM booted with plain OVMF) has no SecureBoot variable
+sb_supported()  { [[ -e /sys/firmware/efi/efivars/SecureBoot-$EFI_GLOBAL ]]; }
 sb_setup_mode() { [[ $(efivar_byte SetupMode) == 1 ]]; }
 sb_enabled()    { [[ $(efivar_byte SecureBoot) == 1 ]]; }
 sb_keys_exist() { sudo test -f /var/lib/sbctl/keys/PK/PK.pem; }
@@ -29,7 +31,8 @@ sb_enrolled() {
 
 step_secureboot() {
     title "Secure Boot"
-    if is_vm; then warn "Virtual machine: Secure Boot skipped"; return 0; fi
+    # VMs are not skipped: OVMF with Secure Boot starts in Setup Mode, which is a good test of this flow
+    if ! sb_supported; then warn "This firmware has no Secure Boot support: skipped"; return 0; fi
     pkg_install sbctl
 
     sb_keys_exist || sudo sbctl create-keys >>"$LOG" 2>&1 || die "sbctl create-keys failed"

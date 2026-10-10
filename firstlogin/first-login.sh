@@ -41,7 +41,7 @@ TASKS=(
     "llm|Local LLM model|Download Qwen3.6-35B-A3B (about 22 GB) for llama-server"
 )
 
-pending_secureboot() { ! is_vm && [[ $(conf_get SECUREBOOT) != skipped ]] && ! { sb_enrolled && sb_enabled; }; }
+pending_secureboot() { sb_supported && [[ $(conf_get SECUREBOOT) != skipped ]] && ! { sb_enrolled && sb_enabled; }; }
 pending_r2()       { ! rclone listremotes 2>/dev/null | grep -qx 'r2:'; }
 pending_pcloud()   { ! rclone listremotes 2>/dev/null | grep -qx 'pcloud:' && ! is_done pcloud; }
 pending_github()   { [[ -z $(git config --global user.email) ]] || ! is_done github; }
@@ -308,7 +308,7 @@ main() {
     fi
     command -v zenity >/dev/null || exit 0
 
-    if ! is_vm && [[ $(conf_get SECUREBOOT) == enrolled ]] && sb_enabled && ! is_done secureboot; then
+    if sb_supported && [[ $(conf_get SECUREBOOT) == enrolled ]] && sb_enabled && ! is_done secureboot; then
         mark_done secureboot
         notify "Secure Boot is ON" "Your own keys are in use. Kernel updates are signed automatically."
     fi
