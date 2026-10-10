@@ -13,7 +13,7 @@ set -euo pipefail
 
 REPO=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 MNT=/mnt
-BTRFS_OPTS="rw,relatime,compress=zstd:3,ssd,discard=async,space_cache=v2"
+BTRFS_OPTS="rw,relatime,compress=zstd:3,space_cache=v2"   # + SSD or HDD options once the disk is known
 
 say()  { printf '\e[1;35m==>\e[0m %s\n' "$*"; }
 warn() { printf '\e[33m  ! %s\e[0m\n' "$*"; }
@@ -46,6 +46,13 @@ lsblk -dpno NAME,SIZE,MODEL,TRAN | grep -vE 'loop|sr[0-9]|usb|zram' || true
 mapfile -t disks < <(lsblk -dpno NAME,TYPE,TRAN | awk '$2=="disk" && $3!="usb" && $1 !~ /zram/{print $1}')
 ((${#disks[@]})) || die "No internal disk found"
 DISK=$(choose "Install Linux on" "${disks[@]}")
+# btrfs either way (snapshots, compression); only the tuning differs:
+#   SSD: ssd allocator + async TRIM     HDD: autodefrag (small random writes fragment files on spinning disks)
+if [[ $(cat "/sys/block/$(basename "$DISK")/queue/rotational" 2>/dev/null) == 1 ]]; then
+    SSD=0; BTRFS_OPTS+=",autodefrag"; say "$DISK is a hard drive: btrfs tuned for HDD"
+else
+    SSD=1; BTRFS_OPTS+=",ssd,discard=async"
+fi
 
 echo
 say "Windows on $DISK:"
@@ -141,7 +148,7 @@ ROOT_UUID=$(blkid -s UUID -o value "$ROOTDEV")
 CMDLINE="root=UUID=$ROOT_UUID rootflags=subvol=@ rw rootfstype=btrfs quiet loglevel=3"
 HOOKS="base udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck"
 if ((LUKS)); then
-    CMDLINE="cryptdevice=UUID=$(blkid -s UUID -o value "$ROOT"):root $CMDLINE"
+    CMDLINE="cryptdevice=UUID=$(blkid -s UUID -o value "$ROOT"):root$( ((SSD)) && echo :allow-discards) $CMDLINE"
     HOOKS=${HOOKS/block filesystems/block encrypt filesystems}
 fi
 
