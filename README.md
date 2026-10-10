@@ -1,74 +1,141 @@
 # ArchSetup
 
-Turns a fresh Arch install into this desktop: CachyOS kernel + Secure Boot, Hyprland + quickshell,
-same packages, same scripts and timers, R2 sync. Documents and Pictures are not in git: they come
-back from Cloudflare R2 through `rclone-sync`.
+**From a blank SSD to my full Arch Linux desktop with one clone and one script.**
+Boot the Arch USB, run the installer, log in, answer a few friendly dialogs, and the machine looks and
+behaves exactly like the one it was copied from, with documents and pictures syncing back from the cloud.
 
-## New machine
+![Desktop: quickshell bar, market and weather widgets on Hyprland](docs/screenshots/desktop.jpg)
 
-**1. Base system (from the Arch USB)**: either one:
+## What you get
+
+**A polished Hyprland desktop**
+- **Quickshell bar** with liquid-glass popups: calendar (Google, through Evolution), Wi-Fi, Bluetooth,
+  volume, notifications, media, CPU/GPU/RAM stats, a battery on laptops, and a one-click
+  "Restart into Windows" when there is a dual boot.
+- **Desktop widgets**: markets (indices and bond yields) and weather.
+- **Spotlight-style launcher** (`Super+Space`): apps, calculator, files and emoji in one box.
+- **Ghostty** terminal with a background image that rotates every 15 minutes, zsh + oh-my-zsh,
+  fastfetch on the first terminal.
+- **Rotating wallpapers**, a hyprlock lock screen, screen-off after 10 minutes, dark theme while an OLED
+  monitor is plugged in (burn-in care) and an auto-hiding bar on it.
+- **Liquid Glass login screen** (a custom SDDM theme) showing the latest Windows Spotlight photos.
+- **macOS-style keys everywhere** (keyd): `Alt+←/→` start/end of line, `Ctrl+Shift+[ / ]` switch tabs.
+
+<p align="center">
+  <img src="docs/screenshots/spotlight.jpg" width="49%" alt="Spotlight launcher">
+  <img src="docs/screenshots/terminal.jpg" width="49%" alt="Ghostty with fastfetch">
+</p>
+
+**A fast, secure base**
+- **CachyOS kernel** (+ LTS fallback) and CachyOS packages optimized for the CPU (znver4 / v4 / v3, picked automatically),
+  the `scx_lavd` gaming-friendly scheduler, zram.
+- **Secure Boot with your own keys**: kernels are signed automatically on every update.
+- **Quiet boot**: the motherboard logo with the Arch logo and a spinner, no text.
+- **btrfs snapshots** of `/` and `/home` every hour (snapper).
+
+**Smart about the hardware**: it installs only what the machine needs:
+AMD, Intel or NVIDIA graphics (including the right legacy driver for older NVIDIA cards), hybrid laptops,
+Bluetooth, Broadcom Wi-Fi, laptop battery and power profiles, virtual machine guest tools.
+No Windows button and no NTFS tools if there is no Windows.
+
+**Things that keep running on their own**
+| Every | What |
+|---|---|
+| 5 minutes | `~/Documents` and `~/Pictures` sync both ways with Cloudflare R2 (newest copy wins) |
+| day (weekly update) | full system + AUR update, Hyprland plugins rebuilt, desktop notification |
+| 15 minutes | new terminal background |
+| week | new Windows Spotlight photos for the login screen |
+
+## Install on a new machine
+
+### 1. Base system, from the Arch USB
 
 ```sh
-# a) Scripted, asks about dual boot and partitions accordingly (needed for Windows on the same SSD)
-iwctl                          # Wi-Fi only: station wlan0 connect <SSID>
+iwctl                     # Wi-Fi only: station wlan0 connect "<network>"
 pacman -Sy git
-git clone https://github.com/<you>/ArchSetup && ArchSetup/live-install.sh
+git clone https://github.com/<you>/ArchSetup
+ArchSetup/live-install.sh
 ```
 
-b) `archinstall`, with the **systemd-boot** bootloader and the ESP mounted on **/boot**
-(btrfs recommended for snapper). Then after reboot:
-`git clone https://github.com/<you>/ArchSetup ~/Workspace/ArchSetup`.
+It asks which disk to use and whether you want **Windows next to Linux**:
 
-**2. `~/Workspace/ArchSetup/install.sh`** as your user, from the console. With option a) it starts by
-itself at the first login on tty1. It asks for the sudo password, whether to dual boot, and which
-optional groups to install. Everything else is automatic.
+- Linux only
+- Windows on another SSD
+- Windows on this SSD, to be installed later (space is set aside for it)
+- Windows on this SSD, already installed (Linux goes into the free space)
 
-**3. Reboot and log in.** The **setup wizard** opens in Hyprland for everything that needs you:
-Secure Boot key enrollment (it reboots into the firmware for you), R2 keys, pCloud / GitHub /
-NordVPN browser logins, Google account in Evolution, Chrome & VS Code sync, Hyprland plugins, and
-the LLM model download. Unfinished items come back at the next login. Open it any time with
-`arch-setup-wizard` (`--all` to redo a step).
+…plus your user name, password, time zone and, optionally, disk encryption. Then reboot.
 
-## What `install.sh` does
+> Prefer `archinstall`? That works too: choose **systemd-boot** and keep the EFI partition on **/boot**,
+> then clone the repo to `~/Workspace/ArchSetup` after the first boot.
 
-| Step | |
+### 2. The installer, at the first login
+
+Log in on the console: `install.sh` starts by itself. You type your password once and pick the optional groups:
+
+- **Gaming**: Steam and 32-bit graphics drivers
+- **Local LLM**: llama.cpp server with a Qwen model (about 22 GB)
+- **NordVPN**
+- **Older apps**: waybar, hyprpanel, an older login theme
+
+Everything else is automatic: repositories, kernels, drivers, about 100 packages (more with the optional groups), settings, scheduled jobs.
+At the end it offers to reboot.
+
+### 3. The setup wizard, in the desktop
+
+After logging in, a checklist opens for the few things that need you. Accounts are signed in **in the
+browser**, never typed into a terminal:
+
+| Task | How |
 |---|---|
-| `preflight` | UEFI/ESP/network checks, pacman (Color, parallel downloads, multilib), machine questions |
-| `repos` | CachyOS repos via the official script (znver4 / v4 / v3 picked from the CPU), paru, yay, rustup |
-| `kernel` | `linux-cachyos` + `linux-cachyos-lts` as UKIs in `/boot/EFI/Linux`, `/etc/kernel/cmdline` built from the real root (UUID / LVM / LUKS / btrfs subvol), systemd-boot, removes the stock kernel |
-| `drivers` | Only what the hardware needs: AMD (RADV) / Intel (ANV) / NVIDIA (CachyOS prebuilt open modules, or legacy for pre-Turing), hybrid → `nvidia-prime`, Bluetooth, Broadcom Wi-Fi, laptop power (UPower, power-profiles-daemon, brightnessctl), VM guest tools |
-| `packages` | `packages/*.txt`: same list as the original machine; `opt-*` groups as chosen |
-| `dotfiles` | Symlinks from `links.txt` (anything in the way is moved to `~/.local/state/arch-setup/backup/`) |
-| `system` | `system/` copied as root (keyd, SDDM Liquid Glass theme, sudoers, scx, zram, units), services, snapper, zsh + oh-my-zsh, user timers |
-| `dualboot` | Windows: sudoers for one-time BootNext, keeps Linux first in the UEFI order; nothing without dual boot |
-| `secureboot` | sbctl keys, signs systemd-boot + UKIs; enrolls (with Microsoft keys) if the firmware is in Setup Mode, else hands over to the wizard |
-| `extras` | omp, user dirs, arms the wizard |
+| Secure Boot | Guided in 3 steps, with reboots into the firmware (BIOS) and hints for each brand. It tells you which step you're at, and what probably went wrong if a step didn't take. |
+| Cloudflare R2 | A form for the access keys, which are checked before saving. Then Documents and Pictures start downloading. |
+| pCloud, GitHub, NordVPN | Browser login |
+| Google account | Added in Evolution, for the bar's calendar |
+| Chrome, VS Code | Sign in to get bookmarks, extensions and settings back |
+| Hyprland plugins | Built automatically (workspace overview on `Super+Tab`) |
+| LLM model | Download with a progress bar |
 
-Every step is idempotent: `./install.sh` again, or only some steps: `./install.sh dotfiles system`.
-Answers are kept in `~/.config/arch-setup/machine.conf`; `./install.sh --reconfigure` asks again.
+Skip anything; it comes back at the next login. Reopen it any time with `arch-setup-wizard`
+(`--all` to redo a step).
 
-## Day to day
+## Using it day to day
 
-- Dotfiles are **symlinks into this repo**: edit `~/.config/hypr/hyprland.lua` (or any linked file)
-  and the change is already here: commit + push. On another machine: `git pull`.
-  Files under `system/` are copies (root-owned): after editing them, `./install.sh system`.
-- New config to track: copy it to `home/<same path>`, add the path to `links.txt`, run `./install.sh dotfiles`.
-- New package: add it to the right `packages/*.txt`.
+- **Your settings live in this repo.** `~/.config/hypr`, `~/.config/quickshell`, `~/.zshrc`, your scripts…
+  are links into it, so editing them edits the repo. Commit and push; on another machine, `git pull`.
+- **System files** (under `system/`, e.g. the login theme) are copied, not linked: edit them in the repo,
+  then run `./install.sh system`.
+- **Re-run anything**: every step can safely run again. `./install.sh` does everything,
+  `./install.sh dotfiles system` only those steps, `./install.sh --reconfigure` asks the questions again.
+- **Add a package** to the right list in `packages/`. **Track a new config file**: put it under `home/`
+  at the same path, add the path to `links.txt`, run `./install.sh dotfiles`.
 
-## Scheduled jobs (systemd user timers)
+### Keyboard shortcuts
 
-| Timer | What |
+| Keys | Action |
 |---|---|
-| `rclone-sync` | every 5 min, bisync `~/Documents` + `~/Pictures` ↔ `r2:aplanche-personal` (enabled by the wizard once R2 is configured) |
-| `system-update` | daily check, weekly `yay -Syu` + omp + hyprpm rebuild |
-| `ghostty-rotate-bg` | every 15 min, Ghostty background from `~/Pictures/Terminal` |
-| `spotlight-download` | weekly, Windows Spotlight images → `~/Pictures/Logging` → login screen |
+| `Super+Space` | Launcher |
+| `Super+T` / `Super+Enter` | Terminal |
+| `Super+B` / `Super+C` / `Super+E` | Chrome / VS Code / Files |
+| `Super+Q` | Close window |
+| `Super+F` / `Super+A` / `Super+V` | Fullscreen / maximize / float |
+| `Super+Tab` | Workspace overview |
+| `Super+1…9`, `+Shift` to move a window | Workspaces |
+| `Super+Z` | Show / pin the bar (auto-hidden on the OLED monitor) |
+| `Super+Shift+S` / `Print` | Screenshot of an area / the screen, to the clipboard |
 
-## Machine-local, not in git
+## What is *not* in the repo
 
-`~/.config/rclone/rclone.conf` (credentials), `~/rclone-sync/bisync-state`, `~/.config/zsh/local.zprofile`
-(GPU env vars), `~/.config/ghostty/background.ghostty`, `~/.config/arch-setup/`.
+- **Your files**: Documents and Pictures come back from R2, wallpapers included.
+- **Secrets**: R2 keys, tokens and logins are entered in the wizard and stay on the machine.
+- **Machine-specific bits**: monitor layout, GPU settings, the answers you gave the installer.
+- **A few vendor tools** you install by hand if you still use them: kiro-cli, the Hermes agent, agy, cua-driver.
 
-## Not automated
+## Requirements
 
-kiro-cli / `q`, the Hermes agent venv (`~/.hermes`), agy, cua-driver: vendor installers, run them by hand.
+A 64-bit PC with **UEFI** (no legacy BIOS), an internet connection, and the Arch Linux USB.
+Secure Boot is optional but supported on any firmware that lets you clear its keys.
+
+---
+
+Working on this repo with a coding agent? See [AGENTS.md](AGENTS.md).
